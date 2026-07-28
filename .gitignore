@@ -1,0 +1,15 @@
+# Rust
+/server/target/
+
+# Python
+engine/.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
