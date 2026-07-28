@@ -1,12 +1,12 @@
 ---
 gsd_state_version: '1.0'
-status: planning
+status: in_progress
 progress:
   total_phases: 6
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
+  percent: 17
 ---
 
 # Project State
@@ -18,17 +18,19 @@ See: .planning/PROJECT.md (updated 2026-07-28)
 **Core value:** An engineer with no programming knowledge can configure a system topology, run an
 optimization solve, and see dispatch/sizing results on screen — without notebooks or a fragile
 local Python environment.
-**Current focus:** Phase 1 — Engine API & Session Isolation
+**Current focus:** Phase 2 — Server Foundations (Auth & Project Persistence)
 
 ## Current Position
 
-Phase: 1 of 6 (Engine API & Session Isolation)
+Phase: 2 of 6 (Server Foundations — Auth & Project Persistence)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-07-28 — Roadmap created from initial project brief; PROJECT.md,
-REQUIREMENTS.md, ROADMAP.md, config.json written to `.planning/`
+Last activity: 2026-07-28 — Phase 1 (Engine API & Session Isolation) implemented directly and
+verified: full session REST API in `engine/src/optistor_engine/api/`, session isolation resolved,
+`engine/tests/test_api.py` passing (4/4 tests total including the pre-existing smoke test).
+PROJECT.md, REQUIREMENTS.md, ROADMAP.md updated to reflect completion.
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 17%
 
 ## Performance Metrics
 
@@ -60,9 +62,12 @@ Recent decisions affecting current work:
   internal HTTP (see PROJECT.md)
 - Pre-roadmap: rejected full Rust optimization rewrite, Tauri desktop app, and 100%-Python stack
   (see PROJECT.md)
-- 8 decisions remain open (concurrency/session isolation, auth mechanism, persistence approach,
-  multi-tenancy model, frontend framework, charting library, tariff formula review, deployment
-  target) — tracked in ROADMAP.md "Open Decisions Tracker" and PROJECT.md Key Decisions
+- Phase 1 (2026-07-28): concurrency/session isolation resolved — in-memory `SessionManager`,
+  UUID-keyed, per-session lock, blocking solves offloaded to a thread pool (see PROJECT.md Key
+  Decisions and ROADMAP.md Phase 1 detail)
+- 7 decisions remain open (auth mechanism, persistence approach, multi-tenancy model, frontend
+  framework, charting library, tariff formula review, deployment target) — tracked in ROADMAP.md
+  "Open Decisions Tracker" and PROJECT.md Key Decisions
 
 ### Pending Todos
 
@@ -74,10 +79,10 @@ None yet.
   has its own "check bracket"/"ask for the shift" comments. Must not reach a commercial proposal
   before Phase 5 closes it out; Phase 4's KPIs must ship visibly marked provisional in the
   meantime.
-- GEKKO row-0 cold-start quirk must be handled in Phase 1's solve endpoint (drop row 0 or seed an
-  initial guess) or single-shot solves will silently return a wrong first-step value.
-- Concurrency/session isolation for in-memory GEKKO `System` instances is a real architectural
-  gap, not yet designed — must be resolved in Phase 1, before any multi-user testing.
+- `SessionManager` is single-process, in-memory only — doesn't survive an `engine/` restart and
+  doesn't scale across multiple worker processes/replicas. Acceptable for v1 (Phase 2 handles
+  durable persistence separately, PROJ-02), but flag if Phase 6's deployment target needs multiple
+  `engine/` replicas.
 
 ## Deferred Items
 
@@ -91,6 +96,8 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-07-28
-Stopped at: Roadmap created and written to `.planning/`; awaiting review before starting Phase 1
-discussion or planning
+Stopped at: Phase 1 complete and committed. Next up is Phase 2 (Server Foundations — Auth &
+Project Persistence), which has 3 open decisions to resolve before/during implementation: auth
+mechanism, client/project data model & persistence, and multi-tenancy/permission model (Open
+Decisions Tracker #2-4 in ROADMAP.md).
 Resume file: None

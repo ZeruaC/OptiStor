@@ -47,17 +47,18 @@ Full detail with IDs lives in `.planning/REQUIREMENTS.md`. Summary below.
 - ✓ `engine/tests/test_smoke.py` proves the ported engine solves: builds a consumer + PV producer +
   battery + grid system, runs a cost-minimizing 6-hour horizon, checks energy balance. Passes —
   pre-roadmap (2026-07-28)
+- ✓ **Phase 1 — Engine API & Session Isolation** (2026-07-28): `engine/` now exposes a full REST
+  API (`POST /sessions`, `.../time`, `.../consumption`, `.../production`, `.../storage`,
+  `.../grid`, `.../solve`, `DELETE /sessions/{id}`) built on an in-memory `SessionManager`
+  (UUID-keyed, per-session `asyncio.Lock`, blocking `solve()` offloaded to a thread pool) — resolves
+  the concurrency/session-isolation decision. Solve responses drop the GEKKO row-0 cold-start value
+  and include basic KPIs (consumption, grid import/export, self-consumption %, cost when
+  applicable). Covered by `engine/tests/test_api.py` (full flow, 404 on unknown session, and an
+  explicit two-session isolation check). ENG-01 through ENG-05 done.
 
 ### Active
 
 <!-- Current v1 scope. Full descriptions and acceptance detail in REQUIREMENTS.md. -->
-
-**Phase 1 — Engine API & Session Isolation**
-- [ ] ENG-01: Engine exposes a topology-configuration endpoint
-- [ ] ENG-02: Engine exposes data/spec-input endpoints
-- [ ] ENG-03: Engine exposes a single-shot solve-trigger endpoint
-- [ ] ENG-04: Solve endpoint correctly handles the GEKKO row-0 cold-start quirk
-- [ ] ENG-05: Concurrent sessions are isolated from each other
 
 **Phase 2 — Server Foundations (Auth & Persistence)**
 - [ ] AUTH-01: Authentication mechanism decided
@@ -164,7 +165,7 @@ Full detail with IDs lives in `.planning/REQUIREMENTS.md`. Summary below.
 | Rejected: full Rust rewrite of the optimization core | Reimplementing GEKKO's solving capability from scratch was judged too risky for v1 | ✓ Good (rejected) |
 | Rejected: Tauri desktop app | Product must be a hosted, multi-user webapp, not a desktop tool | ✓ Good (rejected) |
 | Rejected: 100%-Python web stack (e.g. Solara) | Avoids repeating the pdm-venv fragility class of failure in an always-on partner-facing service | ✓ Good (rejected) |
-| Concurrency/session isolation model for engine solves | Not yet designed — real architectural gap | — Pending (Phase 1) |
+| Concurrency/session isolation model for engine solves | In-memory `SessionManager`, UUID-keyed, one GEKKO `Generic` instance per session, async registry lock + per-session lock, blocking `solve()` offloaded to a thread pool. Single-process only — doesn't survive restarts or scale across replicas (fine for v1; revisit at Phase 6 if needed) | ✓ Good (resolved 2026-07-28, Phase 1) |
 | Authentication mechanism (internal team vs. external partner tiers) | Not yet chosen | — Pending (Phase 2) |
 | Client/project data model & persistence (flat per-client files vs. real database) | Not yet chosen | — Pending (Phase 2) |
 | Multi-tenancy / partner permission model | Not yet designed | — Pending (Phase 2) |
@@ -174,4 +175,4 @@ Full detail with IDs lives in `.planning/REQUIREMENTS.md`. Summary below.
 | Deployment/hosting target (cloud VM, PaaS, self-hosted) | Not yet chosen | — Pending (Phase 6) |
 
 ---
-*Last updated: 2026-07-28 after initial roadmap creation*
+*Last updated: 2026-07-28 after Phase 1 (Engine API & Session Isolation) completed*

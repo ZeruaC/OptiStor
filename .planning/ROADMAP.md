@@ -25,7 +25,7 @@ without addressing its row, that's a gap, not a resolution.
 
 | # | Decision | Resolved in | Status |
 |---|----------|-------------|--------|
-| 1 | Concurrency/session isolation model for engine solves (in-memory GEKKO `System` per session) | Phase 1 | Pending |
+| 1 | Concurrency/session isolation model for engine solves (in-memory GEKKO `System` per session) | Phase 1 | **Resolved** — in-memory `SessionManager` keyed by UUID, async registry lock + per-session lock, blocking `solve()` offloaded to a thread pool (see Phase 1 detail) |
 | 2 | Authentication mechanism (internal team vs. external partner tiers) | Phase 2 | Pending |
 | 3 | Client/project data model & persistence (flat per-client files vs. real database) | Phase 2 | Pending |
 | 4 | Multi-tenancy / partner permission model | Phase 2 | Pending |
@@ -46,7 +46,7 @@ before v1 — they're scope calls already made:
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Engine API & Session Isolation** - Give `engine/` a full HTTP surface (topology, data, solve, results) that's safe for concurrent users
+- [x] **Phase 1: Engine API & Session Isolation** - Give `engine/` a full HTTP surface (topology, data, solve, results) that's safe for concurrent users
 - [ ] **Phase 2: Server Foundations — Auth & Project Persistence** - Give `server/` real login, permission tiers, and durable client/project storage
 - [ ] **Phase 3: Configurar — Topology & Data Input UI** - Engineers build a system topology and enter all input data through a real UI, no code required
 - [ ] **Phase 4: Simular & Dashboard — Solve & Results UI** - Engineers trigger a solve and see energy flows, KPIs, and degradation on screen
@@ -74,15 +74,42 @@ the optimization math itself.
 isolated in-memory GEKKO `System` instance is currently undesigned; must be resolved in this
 phase, not deferred (see Open Decisions Tracker #1).
 **Success Criteria** (what must be TRUE):
-  1. An engineer (via API call) can define a topology (which components exist, which connections
+  1. ✅ An engineer (via API call) can define a topology (which components exist, which connections
      are enabled) for a fresh session
-  2. An engineer can submit consumption/production profiles, tariffs, and technical specs
+  2. ✅ An engineer can submit consumption/production profiles, tariffs, and technical specs
      (power/energy caps, efficiency, cycle max, degradation profile) for that session
-  3. An engineer can trigger a single-shot solve and get back energy-flow time series and KPIs,
+  3. ✅ An engineer can trigger a single-shot solve and get back energy-flow time series and KPIs,
      with the GEKKO row-0 cold-start quirk handled (not left as a spurious fixed zero)
-  4. Two engineers running solves at the same time never see each other's data or corrupt each
+  4. ✅ Two engineers running solves at the same time never see each other's data or corrupt each
      other's in-memory session state
-**Plans**: TBD
+**Plans**: Implemented directly (no separate PLAN.md — scope was small and well-understood from the
+already-ported engine); see commit history for the change set.
+**Completed 2026-07-28.** What shipped, in `engine/src/optistor_engine/api/`:
+  - `sessions.py` — `SessionManager`: in-memory dict keyed by a UUID `session_id`, async registry
+    lock guarding the dict itself, one `asyncio.Lock` per session guarding its GEKKO `Generic`
+    instance. This is the resolution of Open Decisions Tracker #1.
+  - `schemas.py` — Pydantic request/response models mirroring the existing `Generic`/
+    `StorageProducerGridConsumer` method signatures (topology, time, consumption, production,
+    storage spec, grid spec, solve result).
+  - `kpis.py` — post-solve KPI computation (total consumption, grid import/export, self-consumption
+    %, total energy cost when a cost objective with grid costs was configured) read from the
+    engine's already-computed cumulative `_energy_connections`, not re-derived from raw tariff math
+    (keeps Phase 5's scope clean).
+  - `routes.py` — `POST /sessions`, `POST /sessions/{id}/{time,consumption,production,storage,grid}`,
+    `POST /sessions/{id}/solve`, `DELETE /sessions/{id}`. The solve route runs GEKKO's blocking
+    `solve()` in a thread pool (`anyio.to_thread.run_sync`) so one session's solve can't stall
+    another's request handling, and drops row 0 from both the time array and every flow series in
+    the response (v1 is single-shot only, so row 0 is always the meaningless cold-start value, per
+    ENG-04).
+  - Tests: `engine/tests/test_api.py` — full create→configure→solve→delete flow, a 404 check for
+    unknown sessions, and `test_sessions_are_isolated` (two sessions with different consumption
+    inputs produce different KPI results, proving no shared state). All passing alongside the
+    pre-existing `test_smoke.py`.
+**Known limitation carried forward (not a gap in this phase's scope, but worth remembering):** the
+`SessionManager` is single-process, in-memory only — it doesn't survive an `engine/` restart and
+doesn't support horizontal scaling across multiple worker processes/replicas. That's fine for v1
+(durable persistence is Phase 2's job, PROJ-02), but revisit if Phase 6's deployment target ends up
+needing multiple `engine/` replicas behind a load balancer.
 
 ### Phase 2: Server Foundations — Auth & Project Persistence
 **Goal**: `server/` has real multi-user access control and a durable place to store client/project
@@ -190,7 +217,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
-| 1. Engine API & Session Isolation | 0/TBD | Not started | - |
+| 1. Engine API & Session Isolation | 1/1 | Done | 2026-07-28 |
 | 2. Server Foundations — Auth & Project Persistence | 0/TBD | Not started | - |
 | 3. Configurar — Topology & Data Input UI | 0/TBD | Not started | - |
 | 4. Simular & Dashboard — Solve & Results UI | 0/TBD | Not started | - |

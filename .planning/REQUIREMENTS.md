@@ -11,21 +11,26 @@ Requirements for the initial release. Each maps to exactly one roadmap phase (se
 
 ### Engine API & Session Isolation (ENG)
 
-- [ ] **ENG-01**: Engine exposes an endpoint to define/configure a system topology (which
+- [x] **ENG-01**: Engine exposes an endpoint to define/configure a system topology (which
   components exist — consumer, PV producer, battery, grid; which connections between them are
   enabled) for a session, mirroring the existing `ConnectionConfig` dataclass and
-  `StorageProducerGridConsumer` factory
-- [ ] **ENG-02**: Engine exposes endpoints to set consumption profile, production profile,
+  `StorageProducerGridConsumer` factory — `POST /sessions` (2026-07-28)
+- [x] **ENG-02**: Engine exposes endpoints to set consumption profile, production profile,
   tariff/price data, and technical specs (power caps, energy caps, efficiency, cycle max,
   degradation profile) for a session, mirroring the existing `set_consumption` / `set_production` /
   `set_storage_*` / `set_grid_*` / `set_power_max` / `set_energy_cost` methods on the ported
-  `Generic` system class
-- [ ] **ENG-03**: Engine exposes an endpoint to trigger a single-shot solve and returns energy-flow
-  time series plus KPI results
-- [ ] **ENG-04**: Single-shot solve results are correct despite the GEKKO row-0 cold-start quirk
-  (row 0 dropped or seeded with a sensible initial guess, not left as a spurious fixed zero)
-- [ ] **ENG-05**: Concurrent sessions from different users/partners are isolated from each other in
-  memory (no shared mutable GEKKO `System` state, no cross-session data leakage)
+  `Generic` system class — `POST /sessions/{id}/{time,consumption,production,storage,grid}`
+  (2026-07-28)
+- [x] **ENG-03**: Engine exposes an endpoint to trigger a single-shot solve and returns energy-flow
+  time series plus KPI results — `POST /sessions/{id}/solve` (2026-07-28)
+- [x] **ENG-04**: Single-shot solve results are correct despite the GEKKO row-0 cold-start quirk
+  (row 0 dropped or seeded with a sensible initial guess, not left as a spurious fixed zero) — row
+  0 dropped from both `time` and every `flows` series in the solve response (2026-07-28)
+- [x] **ENG-05**: Concurrent sessions from different users/partners are isolated from each other in
+  memory (no shared mutable GEKKO `System` state, no cross-session data leakage) — in-memory
+  `SessionManager` keyed by UUID, one `Generic` system per session, async registry lock + per-session
+  lock, blocking `solve()` offloaded to a thread pool; verified with `test_sessions_are_isolated`
+  (2026-07-28)
 
 ### Server Foundations — Authentication (AUTH)
 
@@ -128,11 +133,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ENG-01 | Phase 1 | Pending |
-| ENG-02 | Phase 1 | Pending |
-| ENG-03 | Phase 1 | Pending |
-| ENG-04 | Phase 1 | Pending |
-| ENG-05 | Phase 1 | Pending |
+| ENG-01 | Phase 1 | Done |
+| ENG-02 | Phase 1 | Done |
+| ENG-03 | Phase 1 | Done |
+| ENG-04 | Phase 1 | Done |
+| ENG-05 | Phase 1 | Done |
 | AUTH-01 | Phase 2 | Pending |
 | AUTH-02 | Phase 2 | Pending |
 | AUTH-03 | Phase 2 | Pending |
@@ -163,4 +168,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-07-28*
-*Last updated: 2026-07-28 after initial roadmap creation*
+*Last updated: 2026-07-28 after Phase 1 (Engine API & Session Isolation) completed*
