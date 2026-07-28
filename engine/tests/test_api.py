@@ -62,6 +62,10 @@ def test_full_session_flow():
     assert kpis["total_consumption_kwh"] > 0
     assert 0 <= kpis["self_consumption_pct"] <= 100
     assert "total_energy_cost" in kpis
+    assert 0 <= kpis["battery_soh_pct"] <= 100
+
+    assert "storage_soc_pct" in result["flows"]
+    assert all(0 <= pct <= 100 for pct in result["flows"]["storage_soc_pct"])
 
     resp = client.delete(f"/sessions/{session_id}")
     assert resp.status_code == 200

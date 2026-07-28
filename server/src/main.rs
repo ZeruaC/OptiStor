@@ -1,6 +1,7 @@
 mod auth;
 mod config;
 mod db;
+mod engine_client;
 mod error;
 mod projects;
 mod ui;
@@ -15,11 +16,13 @@ use sqlx::SqlitePool;
 use tower_http::services::ServeDir;
 
 use auth::JwtVerifier;
+use engine_client::EngineClient;
 
 #[derive(Clone)]
 struct AppState {
     db: SqlitePool,
     jwt_verifier: Arc<JwtVerifier>,
+    engine: Arc<EngineClient>,
 }
 
 impl FromRef<AppState> for Arc<JwtVerifier> {
@@ -68,7 +71,8 @@ async fn engine_health() -> Json<Value> {
 async fn main() {
     let db = db::connect(&database_url()).await.expect("failed to connect to database");
     let jwt_verifier = Arc::new(JwtVerifier::new(&supabase_url()));
-    let state = AppState { db, jwt_verifier };
+    let engine = Arc::new(EngineClient::new(engine_base_url()));
+    let state = AppState { db, jwt_verifier, engine };
 
     let app = Router::new()
         .route("/health", get(health))

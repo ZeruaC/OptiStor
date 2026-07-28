@@ -1,0 +1,85 @@
+<div id="dashboard">
+{% if show_error %}
+    <div class="solve-error">{{ error_message }}</div>
+{% else if show_results %}
+    <div class="kpi-row">
+        {% for kpi in kpi_cards %}
+        <div class="kpi-card">
+            <span class="value">{{ kpi.value }}</span>
+            <span class="label">{{ kpi.label }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="provisional">Los KPIs de coste son provisionales (tarifa de ejemplo) hasta que la Fase 5 valide las formulas de tarifa reales.</p>
+
+    <h2>Flujos de energia</h2>
+    <div id="flows-chart" class="chart"></div>
+
+    {% if show_soc_chart %}
+    <h2>Estado de carga de la bateria</h2>
+    <div id="soc-chart" class="chart"></div>
+    {% endif %}
+
+    <script type="application/json" id="dashboard-time-data">{{ time_json|safe }}</script>
+    <script type="application/json" id="dashboard-flows-data">{{ flows_json|safe }}</script>
+    <script type="application/json" id="dashboard-soc-data">{{ soc_json|safe }}</script>
+    <script>
+        (function () {
+            var time = JSON.parse(document.getElementById('dashboard-time-data').textContent);
+            var flows = JSON.parse(document.getElementById('dashboard-flows-data').textContent);
+            var soc = JSON.parse(document.getElementById('dashboard-soc-data').textContent);
+
+            var palette = {
+                'Consumo': '#4C6EF5',
+                'Produccion': '#F5A623',
+                'Red importacion': '#E64980',
+                'Red exportacion': '#12B886',
+                'Bateria carga': '#7048E8',
+                'Bateria descarga': '#15AABF'
+            };
+
+            var series = Object.keys(flows).map(function (name) {
+                return {
+                    name: name,
+                    type: 'line',
+                    smooth: true,
+                    showSymbol: false,
+                    areaStyle: { opacity: 0.15 },
+                    lineStyle: { width: 2 },
+                    color: palette[name] || '#888',
+                    data: flows[name]
+                };
+            });
+
+            echarts.init(document.getElementById('flows-chart')).setOption({
+                tooltip: { trigger: 'axis' },
+                legend: { top: 0 },
+                grid: { left: 55, right: 20, top: 40, bottom: 30 },
+                xAxis: { type: 'category', data: time, name: 'Horas' },
+                yAxis: { type: 'value', name: 'kW' },
+                series: series
+            });
+
+            if (soc) {
+                echarts.init(document.getElementById('soc-chart')).setOption({
+                    tooltip: { trigger: 'axis' },
+                    grid: { left: 55, right: 20, top: 20, bottom: 30 },
+                    xAxis: { type: 'category', data: time, name: 'Horas' },
+                    yAxis: { type: 'value', name: '% SoC', min: 0, max: 100 },
+                    series: [{
+                        name: 'Estado de carga',
+                        type: 'line',
+                        smooth: true,
+                        showSymbol: false,
+                        areaStyle: { opacity: 0.2, color: '#7048E8' },
+                        lineStyle: { width: 2, color: '#7048E8' },
+                        data: soc
+                    }]
+                });
+            }
+        })();
+    </script>
+{% else %}
+    <p>Todavia no se ha simulado este proyecto.</p>
+{% endif %}
+</div>

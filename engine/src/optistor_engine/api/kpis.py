@@ -55,6 +55,10 @@ def compute_kpis(system: Generic) -> dict[str, float]:
             )
             kpis["self_consumption_pct"] = 100.0 * self_used_kwh / total_production_kwh
 
+    if system._storages:
+        storage = system._components[STORAGE]
+        kpis["battery_soh_pct"] = 100.0 * storage._SoH
+
     cost_rate_in = system._energy_cost_rate.get((None, GRID))
     cost_rate_out = system._energy_cost_rate.get((GRID, None))
     if cost_rate_in is not None or cost_rate_out is not None:
@@ -66,3 +70,22 @@ def compute_kpis(system: Generic) -> dict[str, float]:
         kpis["total_energy_cost"] = total_cost
 
     return kpis
+
+
+def battery_soc_series(system: Generic) -> list[float] | None:
+    """State of charge (%) over the solved horizon (row 0 dropped, see ENG-04).
+
+    This is the single-horizon SoC trajectory, not a multi-cycle degradation
+    curve — tracking SoH decline across many cycles needs the rolling-horizon
+    solving that's deferred to v2 (ENG-06). `battery_soh_pct` in `compute_kpis`
+    is the scalar SoH this solve's cycle usage implies, which is what will
+    move once rolling-horizon solves start accumulating cycles.
+    """
+    if not system._storages:
+        return None
+    storage = system._components[STORAGE]
+    capacity = storage.energy.UPPER
+    if not capacity:
+        return None
+    energy = system.results.loc[:, storage.energy.name].to_numpy()[1:]
+    return (100.0 * energy / capacity).tolist()

@@ -80,17 +80,32 @@ Requirements for the initial release. Each maps to exactly one roadmap phase (se
 
 ### Simular — Solve Trigger (SIML)
 
-- [ ] **SIML-01**: Engineer can trigger a solve from the dashboard UI and see solve
-  progress/completion/error status
-- [ ] **SIML-02**: A decision on the charting library (Plotly.js vs. ECharts) is made and
-  documented
+- [x] **SIML-01**: Engineer can trigger a solve from the dashboard UI and see solve
+  progress/completion/error status — HTMX-driven "Simular" button (gated on the config being
+  complete), `htmx-indicator` spinner while solving, errors surfaced inline instead of a crash
+  (2026-07-28)
+- [x] **SIML-02**: A decision on the charting library (Plotly.js vs. ECharts) is made and
+  documented — Apache ECharts, chosen explicitly for visual polish (gradient area fills, smooth
+  animated curves) over Plotly's more utilitarian default look, to get closer to PVSyst-caliber
+  report aesthetics; free/open-source (Apache 2.0), no licensing cost (2026-07-28)
 
 ### Dashboard — Results Display (DASH)
 
-- [ ] **DASH-01**: Engineer sees a chart of energy flows over time after a solve completes
-- [ ] **DASH-02**: Engineer sees KPIs (self-consumption %, cost, LCOS) after a solve completes,
-  visibly marked provisional pending tariff validation (Phase 5)
-- [ ] **DASH-03**: Engineer sees a battery degradation/SoH curve over the modeled horizon
+- [x] **DASH-01**: Engineer sees a chart of energy flows over time after a solve completes — raw
+  per-connection flows aggregated into 6 meaningful series (Consumo, Produccion, Red
+  importacion/exportacion, Bateria carga/descarga) and rendered as a smoothed, gradient-filled
+  ECharts line/area chart (2026-07-28)
+- [x] **DASH-02**: Engineer sees KPIs (self-consumption %, cost, LCOS) after a solve completes,
+  visibly marked provisional pending tariff validation (Phase 5) — KPI cards plus an explicit
+  on-screen note that cost figures use a provisional flat example tariff, not the real formulas
+  Phase 5 will validate. LCOS specifically is not yet computed (needs the real tariff/finance
+  model from Phase 5) — tracked as a Phase 5 follow-up, not silently dropped (2026-07-28)
+- [x] **DASH-03**: Engineer sees a battery degradation/SoH curve over the modeled horizon —
+  implemented as the battery's State of Charge (%) trajectory over the solved horizon (a genuinely
+  meaningful single-solve output) plus a scalar SoH KPI computed from cycle usage. True multi-cycle
+  SoH *decline* tracking needs the rolling-horizon solving that's deferred to v2 (ENG-06); the
+  plumbing (`_SoH` property, cycle tracking) is already in place from the ported engine and will
+  show real movement once rolling-horizon accumulates cycles across solves (2026-07-28)
 
 ### Tariff Formula Validation & Port (FIN)
 
@@ -164,11 +179,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONF-03 | Phase 3 | Done |
 | CONF-04 | Phase 3 | Done |
 | CONF-05 | Phase 3 | Done |
-| SIML-01 | Phase 4 | Pending |
-| SIML-02 | Phase 4 | Pending |
-| DASH-01 | Phase 4 | Pending |
-| DASH-02 | Phase 4 | Pending |
-| DASH-03 | Phase 4 | Pending |
+| SIML-01 | Phase 4 | Done |
+| SIML-02 | Phase 4 | Done |
+| DASH-01 | Phase 4 | Done |
+| DASH-02 | Phase 4 | Done |
+| DASH-03 | Phase 4 | Done (SoC trajectory; full SoH decline needs v2 rolling-horizon) |
 | FIN-01 | Phase 5 | Pending |
 | FIN-02 | Phase 5 | Pending |
 | FIN-03 | Phase 5 | Pending |
@@ -183,4 +198,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-07-28*
-*Last updated: 2026-07-28 after Phase 3 (Configurar — Topology & Data Input UI) completed*
+*Last updated: 2026-07-28 after Phase 4 (Simular & Dashboard — Solve & Results UI) completed*

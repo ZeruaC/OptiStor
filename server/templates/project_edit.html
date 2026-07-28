@@ -75,4 +75,19 @@
 
     <button type="submit">Guardar configuracion</button>
 </form>
+
+<h2>Simular</h2>
+{% if missing.is_empty() %}
+<button
+    hx-post="/app/projects/{{ project_id }}/solve"
+    hx-target="#dashboard"
+    hx-swap="outerHTML"
+    hx-indicator="#solve-spinner"
+>Simular</button>
+<span id="solve-spinner" class="htmx-indicator">Resolviendo...</span>
+{% else %}
+<p>Completa la configuracion antes de simular.</p>
+{% endif %}
+
+{% include "_dashboard.html" %}
 {% endblock %}

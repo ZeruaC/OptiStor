@@ -1,9 +1,30 @@
 //! The shape of `projects.data` (see `db.rs`): system topology + input data
-//! for one project. Field names deliberately mirror the pydantic schemas in
-//! `engine/src/optistor_engine/api/schemas.py` so Phase 4 can forward this
-//! blob straight into the engine's session endpoints without translation.
+//! for one project, plus its most recent solve result. Field names in
+//! `ProjectData` deliberately mirror the pydantic schemas in
+//! `engine/src/optistor_engine/api/schemas.py` so `engine_client.rs` can
+//! forward it straight into the engine's session endpoints with minimal
+//! translation.
+
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+
+/// The full stored record for a project: its Configurar-phase config, plus
+/// whatever the last Simular-phase solve produced (if any).
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ProjectRecord {
+    #[serde(default)]
+    pub config: ProjectData,
+    #[serde(default)]
+    pub last_solve: Option<SolveResultData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SolveResultData {
+    pub time: Vec<f64>,
+    pub flows: BTreeMap<String, Vec<f64>>,
+    pub kpis: BTreeMap<String, f64>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectionConfigData {

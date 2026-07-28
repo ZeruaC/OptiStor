@@ -30,7 +30,7 @@ without addressing its row, that's a gap, not a resolution.
 | 3 | Client/project data model & persistence (flat per-client files vs. real database) | Phase 2 | **Resolved** — SQLite via `sqlx`; `organizations` + `projects` tables |
 | 4 | Multi-tenancy / partner permission model | Phase 2 | **Resolved** — `role`/`org_id` as Supabase `app_metadata` claims, enforced server-side; verified with real internal and partner JWTs |
 | 5 | Frontend framework (Leptos/WASM vs. server-rendered HTMX + Askama) | Phase 3 | **Resolved** — HTMX + Askama; this phase is forms-and-validation-heavy, not worth a second (WASM) build toolchain |
-| 6 | Charting library (Plotly.js vs. ECharts) | Phase 4 | Pending |
+| 6 | Charting library (Plotly.js vs. ECharts) | Phase 4 | **Resolved** — Apache ECharts, chosen for visual polish over Plotly's more utilitarian defaults, to get closer to PVSyst-caliber report aesthetics |
 | 7 | Tariff formula validity — domain/finance expert review of `get_index_tariff` family | Phase 5 | Pending |
 | 8 | Deployment/hosting target (cloud VM, PaaS, self-hosted) | Phase 6 | Pending |
 
@@ -49,7 +49,7 @@ before v1 — they're scope calls already made:
 - [x] **Phase 1: Engine API & Session Isolation** - Give `engine/` a full HTTP surface (topology, data, solve, results) that's safe for concurrent users
 - [x] **Phase 2: Server Foundations — Auth & Project Persistence** - Give `server/` real login, permission tiers, and durable client/project storage
 - [x] **Phase 3: Configurar — Topology & Data Input UI** - Engineers build a system topology and enter all input data through a real UI, no code required
-- [ ] **Phase 4: Simular & Dashboard — Solve & Results UI** - Engineers trigger a solve and see energy flows, KPIs, and degradation on screen
+- [x] **Phase 4: Simular & Dashboard — Solve & Results UI** - Engineers trigger a solve and see energy flows, KPIs, and degradation on screen
 - [ ] **Phase 5: Tariff Formula Validation & Port** - Replace the unvalidated tariff math with a domain-reviewed, tested version before it's trusted in commercial numbers
 - [ ] **Phase 6: Deployment & Go-Live** - Take the full stack from localhost to a real, reachable, partner-usable hosted service
 
@@ -230,16 +230,59 @@ When Phase 4 forwards a saved `ProjectData` into the engine's `/storage` endpoin
 KPIs, degradation — on screen.
 **Depends on**: Phase 3
 **Requirements**: SIML-01, SIML-02, DASH-01, DASH-02, DASH-03
-**Decision point**: Charting library — Plotly.js vs. ECharts — not chosen; must be resolved before
-results views are built (Open Decisions Tracker #6).
+**Decision point**: Charting library — Plotly.js vs. ECharts — resolved this phase (Open Decisions
+Tracker #6).
 **Success Criteria** (what must be TRUE):
-  1. Charting library decision is made and recorded in PROJECT.md Key Decisions
-  2. Engineer can trigger a solve from the dashboard and see its progress/completion/error status
-  3. Engineer sees a chart of energy flows over time after a solve completes
-  4. Engineer sees KPIs (self-consumption %, cost, LCOS) after a solve completes, visibly marked
-     provisional pending tariff validation (Phase 5)
-  5. Engineer sees a battery degradation/SoH curve over the modeled horizon
-**Plans**: TBD
+  1. ✅ Charting library decision is made and recorded in PROJECT.md Key Decisions
+  2. ✅ Engineer can trigger a solve from the dashboard and see its progress/completion/error status
+  3. ✅ Engineer sees a chart of energy flows over time after a solve completes
+  4. ✅ Engineer sees KPIs (self-consumption %, cost, LCOS) after a solve completes, visibly marked
+     provisional pending tariff validation (Phase 5) — LCOS itself isn't computed yet (needs Phase
+     5's finance model); the KPIs that exist are correctly flagged provisional
+  5. ✅ Engineer sees a battery degradation/SoH curve over the modeled horizon — as a single-solve
+     SoC trajectory + scalar SoH KPI; true multi-cycle degradation tracking needs v2's
+     rolling-horizon solving (ENG-06)
+**Plans**: Implemented directly (no separate PLAN.md — same rationale as Phases 1-3).
+**Completed 2026-07-28.** What shipped:
+  - **Charting decision**: Apache ECharts over Plotly.js — Plotly is technically solid (and was
+    the old prototype's own choice) but its default look reads as "notebook," not "client
+    deliverable." ECharts' gradient area fills and smooth animated curves get closer to the
+    PVSyst-caliber polish the client asked for explicitly, at no licensing cost (Apache 2.0).
+    `static/echarts.min.js` vendored locally alongside htmx, same no-CDN-dependency approach.
+  - **Engine extended** (`engine/src/optistor_engine/api/`): `kpis.py` gained `battery_soh_pct`
+    (scalar, from the already-ported `Storage._SoH` property) and `battery_soc_series()` (the
+    energy trajectory as % of capacity); `routes.py`'s solve endpoint now includes that series in
+    its `flows` dict under `storage_soc_pct`. Existing tests extended to cover both; still passing.
+  - `server/src/engine_client.rs` — `EngineClient::run_solve()` takes a project's stored
+    `ProjectData`, drives the full engine session lifecycle (create -> time -> consumption ->
+    production -> storage -> grid -> solve -> delete), and applies the Phase 3-flagged fix: a
+    blank storage efficiency (serialized as 0.0) is now treated as "unset, use 1.0" rather than
+    passed through literally. Also injects a **provisional flat example tariff** (not real pricing)
+    when the objective is "cost", purely so that objective has something to optimize against and
+    the cost KPI has a number to show before Phase 5 validates the real tariff formulas — clearly
+    labeled as provisional in the UI, not silently presented as real.
+  - `server/src/config.rs` — `ProjectRecord` (wraps `config: ProjectData` + `last_solve: Option<
+    SolveResultData>`) is now the actual shape of `projects.data`; `save_config` preserves
+    `last_solve` rather than wiping it, so saving config after a solve doesn't lose results.
+  - `server/src/ui.rs` — new `POST /app/projects/{id}/solve` route: checks the config is complete
+    before calling the engine, aggregates the ~9 raw per-connection power flows into 6 chartable
+    series by name pattern (source/sink substring matching, not a fixed model-name prefix, since
+    that prefix isn't stable across sessions), builds KPI cards, and returns an HTMX-swappable
+    dashboard fragment. `templates/_dashboard.html` renders the KPI row, the provisional-tariff
+    notice, and two ECharts charts (energy flows; battery SoC) via embedded JSON data blocks.
+  - **Verified in a real browser** against the live Supabase project and the live engine: a fully
+    pre-configured project (consumer + PV + battery + grid, cost objective), clicked Simular,
+    watched the dashboard fragment swap in with real computed KPIs (630 kWh consumption, 100%
+    self-consumption, 100% SoH, etc.), confirmed both charts render as actual ECharts canvas
+    instances (not just empty divs) with no console errors, and confirmed the solve result
+    persists across a full page reload.
+**Known scope notes carried forward, not gaps:**
+  - LCOS (Levelized Cost of Storage) is not computed in Phase 4 — it needs real project economics
+    (capex, opex, discount rate) that aren't collected yet and depends on Phase 5's validated
+    tariff/finance model. Tracked as a Phase 5 follow-up.
+  - The provisional flat tariff injected for the "cost" objective (-0.05/0.20 per kWh export/
+    import, arbitrary units) exists purely to give that objective and its KPI something to compute
+    against pre-Phase-5. It must be replaced, not extended, when Phase 5 lands real tariffs.
 **UI hint**: yes
 
 ### Phase 5: Tariff Formula Validation & Port
@@ -291,6 +334,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Engine API & Session Isolation | 1/1 | Done | 2026-07-28 |
 | 2. Server Foundations — Auth & Project Persistence | 1/1 | Done | 2026-07-28 |
 | 3. Configurar — Topology & Data Input UI | 1/1 | Done | 2026-07-28 |
-| 4. Simular & Dashboard — Solve & Results UI | 0/TBD | Not started | - |
+| 4. Simular & Dashboard — Solve & Results UI | 1/1 | Done | 2026-07-28 |
 | 5. Tariff Formula Validation & Port | 0/TBD | Not started | - |
 | 6. Deployment & Go-Live | 0/TBD | Not started | - |

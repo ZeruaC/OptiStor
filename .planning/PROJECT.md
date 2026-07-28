@@ -78,17 +78,26 @@ Full detail with IDs lives in `.planning/REQUIREMENTS.md`. Summary below.
   through CONF-05 done. Known follow-up for Phase 4: blank number fields round-trip as "0" after a
   save, so treat a 0.0 storage efficiency as "unset" rather than literal when wiring into the
   engine.
+- ✓ **Phase 4 — Simular & Dashboard (Solve & Results UI)** (2026-07-28): charting library decided
+  — Apache ECharts over Plotly.js, chosen explicitly for visual polish (gradient fills, smooth
+  animated curves) to get closer to PVSyst-caliber report aesthetics; free, no licensing cost.
+  Engine extended with `battery_soh_pct` (scalar KPI) and a `storage_soc_pct` time series in the
+  solve response. New `server/src/engine_client.rs` drives a full engine session lifecycle from a
+  project's stored config (applying the Phase 3 fix: blank efficiency treated as "unset, use 1.0")
+  and injects a clearly-labeled provisional flat tariff so the "cost" objective has something to
+  optimize before Phase 5. `projects.data` now stores `ProjectRecord{config, last_solve}` so solve
+  results persist like config does. New `POST /app/projects/{id}/solve` aggregates ~9 raw
+  per-connection flows into 6 chartable series and returns an HTMX-swappable dashboard fragment
+  with KPI cards + two ECharts charts (energy flows, battery SoC). Verified in a real browser
+  against the live Supabase project and engine: solved a fully-configured project, confirmed real
+  KPI numbers, both charts rendering as actual ECharts canvas instances with no console errors,
+  and persistence across a hard reload. SIML-01/02 and DASH-01/02/03 done. LCOS itself isn't
+  computed yet (needs Phase 5's finance model) and full multi-cycle SoH decline needs v2's
+  rolling-horizon solving (ENG-06) — both noted as scope, not gaps.
 
 ### Active
 
 <!-- Current v1 scope. Full descriptions and acceptance detail in REQUIREMENTS.md. -->
-
-**Phase 4 — Simular & Dashboard (Solve & Results UI)**
-- [ ] SIML-01: Engineer can trigger a solve from the UI
-- [ ] SIML-02: Charting library decided
-- [ ] DASH-01: Energy-flow-over-time chart shown after solve
-- [ ] DASH-02: KPIs shown (self-consumption %, cost, LCOS) — provisional-tariff-flagged
-- [ ] DASH-03: Battery degradation/SoH curve shown
 
 **Phase 5 — Tariff Formula Validation & Port**
 - [ ] FIN-01: Tariff formulas reviewed and validated by a domain/finance expert
@@ -178,9 +187,9 @@ Full detail with IDs lives in `.planning/REQUIREMENTS.md`. Summary below.
 | Client/project data model & persistence: SQLite via `sqlx` | Simplicity for current scale; flat files rejected outright since they can't support listing/querying a user's own projects (PROJ-03) | ✓ Good (resolved 2026-07-28, Phase 2) |
 | Multi-tenancy / partner permission model: `role`/`org_id` as Supabase `app_metadata` claims, enforced by `server/` | Standard org-scoping pattern; verified with real internal- and partner-role JWTs, including that cross-org access by id 404s rather than 403s (no existence leak) | ✓ Good (resolved 2026-07-28, Phase 2) |
 | Frontend framework: HTMX + server-rendered Askama templates | Phase 3 is forms + validation feedback, not rich client interactivity; avoids a second (WASM) build toolchain alongside the existing Rust one | ✓ Good (resolved 2026-07-28, Phase 3) |
-| Charting library: Plotly.js vs. ECharts | Not yet chosen | — Pending (Phase 4) |
+| Charting library: Apache ECharts | Explicitly chosen for visual polish (gradient fills, smooth animated curves) over Plotly's more utilitarian defaults, to get closer to PVSyst-caliber report aesthetics the client asked for; free/open-source, no licensing cost | ✓ Good (resolved 2026-07-28, Phase 4) |
 | Tariff formula validity (`get_index_tariff` family) | Needs domain/finance expert review before porting; original code's own comments flag it as unvalidated | — Pending (Phase 5) |
 | Deployment/hosting target (cloud VM, PaaS, self-hosted) | Not yet chosen | — Pending (Phase 6) |
 
 ---
-*Last updated: 2026-07-28 after Phase 3 (Configurar — Topology & Data Input UI) completed*
+*Last updated: 2026-07-28 after Phase 4 (Simular & Dashboard — Solve & Results UI) completed*

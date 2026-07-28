@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException
 
 from ..optimization.systems import ConnectionConfig, STORAGE, GRID
 from ..optimization.systems import StorageProducerGridConsumer
-from .kpis import compute_kpis
+from .kpis import battery_soc_series, compute_kpis
 from .schemas import (
     GridSpecIn,
     ProfileIn,
@@ -135,6 +135,9 @@ async def solve_session(session_id: str) -> SolveResult:
             name: system.results.loc[:, name].to_numpy()[1:].tolist()
             for name in (v.name for v in system._power_connections.values())
         }
+        soc = battery_soc_series(system)
+        if soc is not None:
+            flows["storage_soc_pct"] = soc
         kpis = compute_kpis(system)
 
     return SolveResult(time=system.time[1:].tolist(), flows=flows, kpis=kpis)
