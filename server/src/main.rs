@@ -1,9 +1,41 @@
+mod auth;
+mod db;
+mod error;
+mod projects;
+
+use std::env;
+use std::sync::Arc;
+
+use axum::extract::FromRef;
 use axum::{routing::get, Json, Router};
 use serde_json::{json, Value};
-use std::env;
+use sqlx::SqlitePool;
+
+use auth::JwtVerifier;
+
+#[derive(Clone)]
+struct AppState {
+    db: SqlitePool,
+    jwt_verifier: Arc<JwtVerifier>,
+}
+
+impl FromRef<AppState> for Arc<JwtVerifier> {
+    fn from_ref(state: &AppState) -> Self {
+        state.jwt_verifier.clone()
+    }
+}
 
 fn engine_base_url() -> String {
     env::var("OPTISTOR_ENGINE_URL").unwrap_or_else(|_| "http://127.0.0.1:8001".to_string())
+}
+
+fn supabase_url() -> String {
+    env::var("OPTISTOR_SUPABASE_URL")
+        .unwrap_or_else(|_| "https://fyqulandxyicawmvquxg.supabase.co".to_string())
+}
+
+fn database_url() -> String {
+    env::var("OPTISTOR_DATABASE_URL").unwrap_or_else(|_| "sqlite://optistor.db".to_string())
 }
 
 async fn health() -> Json<Value> {
@@ -24,9 +56,15 @@ async fn engine_health() -> Json<Value> {
 
 #[tokio::main]
 async fn main() {
+    let db = db::connect(&database_url()).await.expect("failed to connect to database");
+    let jwt_verifier = Arc::new(JwtVerifier::new(&supabase_url()));
+    let state = AppState { db, jwt_verifier };
+
     let app = Router::new()
         .route("/health", get(health))
-        .route("/api/engine/health", get(engine_health));
+        .route("/api/engine/health", get(engine_health))
+        .merge(projects::router())
+        .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8000")
         .await

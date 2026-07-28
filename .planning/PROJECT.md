@@ -55,18 +55,19 @@ Full detail with IDs lives in `.planning/REQUIREMENTS.md`. Summary below.
   and include basic KPIs (consumption, grid import/export, self-consumption %, cost when
   applicable). Covered by `engine/tests/test_api.py` (full flow, 404 on unknown session, and an
   explicit two-session isolation check). ENG-01 through ENG-05 done.
+- ✓ **Phase 2 — Server Foundations (Auth & Persistence)** (2026-07-28): `server/` verifies
+  Supabase-issued ES256 JWTs (dedicated `OptiStor` Supabase project, `fyqulandxyicawmvquxg`) via
+  JWKS, reads `role`/`org_id` from `app_metadata` for multi-tenancy, and persists
+  organizations/projects in SQLite via `sqlx`. `POST /organizations` (internal-only),
+  `POST /projects`, `GET /projects`, `GET /projects/{id}` all org-scoped for partners. Verified
+  end-to-end against the live Supabase project with real internal- and partner-role JWTs (partner
+  correctly restricted, 404-not-403 on cross-org access by id, projects survive a server restart),
+  plus 3 checked-in unit tests. AUTH-01 through AUTH-03 and PROJ-01 through PROJ-03 done — except
+  the login-page UI itself, deferred into Phase 3 by design (no frontend framework chosen yet).
 
 ### Active
 
 <!-- Current v1 scope. Full descriptions and acceptance detail in REQUIREMENTS.md. -->
-
-**Phase 2 — Server Foundations (Auth & Persistence)**
-- [ ] AUTH-01: Authentication mechanism decided
-- [ ] AUTH-02: User can log in with tiered access
-- [ ] AUTH-03: External partners restricted to their own client/project data
-- [ ] PROJ-01: Client/project data model & persistence approach decided
-- [ ] PROJ-02: Projects persist across server restarts
-- [ ] PROJ-03: User can create/list/reopen their own projects
 
 **Phase 3 — Configurar (Topology & Data Input UI)**
 - [ ] CONF-01: Frontend framework decided
@@ -166,13 +167,13 @@ Full detail with IDs lives in `.planning/REQUIREMENTS.md`. Summary below.
 | Rejected: Tauri desktop app | Product must be a hosted, multi-user webapp, not a desktop tool | ✓ Good (rejected) |
 | Rejected: 100%-Python web stack (e.g. Solara) | Avoids repeating the pdm-venv fragility class of failure in an always-on partner-facing service | ✓ Good (rejected) |
 | Concurrency/session isolation model for engine solves | In-memory `SessionManager`, UUID-keyed, one GEKKO `Generic` instance per session, async registry lock + per-session lock, blocking `solve()` offloaded to a thread pool. Single-process only — doesn't survive restarts or scale across replicas (fine for v1; revisit at Phase 6 if needed) | ✓ Good (resolved 2026-07-28, Phase 1) |
-| Authentication mechanism (internal team vs. external partner tiers) | Not yet chosen | — Pending (Phase 2) |
-| Client/project data model & persistence (flat per-client files vs. real database) | Not yet chosen | — Pending (Phase 2) |
-| Multi-tenancy / partner permission model | Not yet designed | — Pending (Phase 2) |
+| Authentication mechanism: Supabase Auth (dedicated `OptiStor` project, `fyqulandxyicawmvquxg`), `server/` verifies ES256 JWTs via JWKS | Already had a Supabase account; avoids self-hosting password storage/reset/invite flows | ✓ Good (resolved 2026-07-28, Phase 2) |
+| Client/project data model & persistence: SQLite via `sqlx` | Simplicity for current scale; flat files rejected outright since they can't support listing/querying a user's own projects (PROJ-03) | ✓ Good (resolved 2026-07-28, Phase 2) |
+| Multi-tenancy / partner permission model: `role`/`org_id` as Supabase `app_metadata` claims, enforced by `server/` | Standard org-scoping pattern; verified with real internal- and partner-role JWTs, including that cross-org access by id 404s rather than 403s (no existence leak) | ✓ Good (resolved 2026-07-28, Phase 2) |
 | Frontend framework: Leptos (Rust/WASM) vs. server-rendered HTMX + Askama | Not yet chosen | — Pending (Phase 3) |
 | Charting library: Plotly.js vs. ECharts | Not yet chosen | — Pending (Phase 4) |
 | Tariff formula validity (`get_index_tariff` family) | Needs domain/finance expert review before porting; original code's own comments flag it as unvalidated | — Pending (Phase 5) |
 | Deployment/hosting target (cloud VM, PaaS, self-hosted) | Not yet chosen | — Pending (Phase 6) |
 
 ---
-*Last updated: 2026-07-28 after Phase 1 (Engine API & Session Isolation) completed*
+*Last updated: 2026-07-28 after Phase 2 (Server Foundations — Auth & Project Persistence) completed*

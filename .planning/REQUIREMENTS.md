@@ -34,21 +34,30 @@ Requirements for the initial release. Each maps to exactly one roadmap phase (se
 
 ### Server Foundations — Authentication (AUTH)
 
-- [ ] **AUTH-01**: A decision on the authentication mechanism is made and documented in
-  PROJECT.md Key Decisions
-- [ ] **AUTH-02**: A user can log in to the server via a login page with credentials appropriate to
-  their access tier
-- [ ] **AUTH-03**: An external partner's account is restricted to their own client/project data;
-  internal Balore staff have appropriately broader access (multi-tenancy/permission model)
+- [x] **AUTH-01**: A decision on the authentication mechanism is made and documented in
+  PROJECT.md Key Decisions — Supabase Auth (dedicated project `OptiStor`, `fyqulandxyicawmvquxg`),
+  server verifies Supabase-issued ES256 JWTs against its JWKS (2026-07-28)
+- [x] **AUTH-02**: A user can log in with credentials appropriate to their access tier — verified
+  end-to-end against the real Supabase project (signup, sign-in, server accepts the resulting JWT).
+  The actual **login page UI** doesn't exist yet — it lands in Phase 3 once a frontend framework is
+  chosen; what's done here is the backend mechanism it will call (2026-07-28)
+- [x] **AUTH-03**: An external partner's account is restricted to their own client/project data;
+  internal Balore staff have appropriately broader access (multi-tenancy/permission model) — `role`
+  + `org_id` carried as Supabase `app_metadata` claims, enforced by `server/`; verified with a real
+  partner-role JWT unable to list, or fetch by id (404, not 403 — no existence leak), another org's
+  project (2026-07-28)
 
 ### Server Foundations — Client/Project Persistence (PROJ)
 
-- [ ] **PROJ-01**: A decision on the client/project data model and persistence approach (flat
+- [x] **PROJ-01**: A decision on the client/project data model and persistence approach (flat
   per-client files, like the old prototype's `projects/senia/` pattern, vs. a real database) is
-  made and documented
-- [ ] **PROJ-02**: A client/project (topology + data + solve results) persists across server
-  restarts
-- [ ] **PROJ-03**: A user can create, list, and reopen their own past projects
+  made and documented — SQLite via `sqlx`, `organizations` + `projects` tables, `projects.data` as
+  an opaque JSON blob whose shape is deferred to the Phase 3/4 UI (2026-07-28)
+- [x] **PROJ-02**: A client/project (topology + data + solve results) persists across server
+  restarts — verified by killing and restarting the server and confirming prior projects were
+  still listed (2026-07-28)
+- [x] **PROJ-03**: A user can create, list, and reopen their own past projects — `POST /projects`,
+  `GET /projects`, `GET /projects/{id}`, all org-scoped for partner accounts (2026-07-28)
 
 ### Configurar — Topology & Data Input UI (CONF)
 
@@ -138,12 +147,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ENG-03 | Phase 1 | Done |
 | ENG-04 | Phase 1 | Done |
 | ENG-05 | Phase 1 | Done |
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
-| PROJ-01 | Phase 2 | Pending |
-| PROJ-02 | Phase 2 | Pending |
-| PROJ-03 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Done |
+| AUTH-02 | Phase 2 | Done (backend; login page UI in Phase 3) |
+| AUTH-03 | Phase 2 | Done |
+| PROJ-01 | Phase 2 | Done |
+| PROJ-02 | Phase 2 | Done |
+| PROJ-03 | Phase 2 | Done |
 | CONF-01 | Phase 3 | Pending |
 | CONF-02 | Phase 3 | Pending |
 | CONF-03 | Phase 3 | Pending |
@@ -168,4 +177,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-07-28*
-*Last updated: 2026-07-28 after Phase 1 (Engine API & Session Isolation) completed*
+*Last updated: 2026-07-28 after Phase 2 (Server Foundations — Auth & Project Persistence) completed*

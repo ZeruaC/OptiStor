@@ -3,10 +3,10 @@ gsd_state_version: '1.0'
 status: in_progress
 progress:
   total_phases: 6
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 17
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 33
 ---
 
 # Project State
@@ -18,19 +18,20 @@ See: .planning/PROJECT.md (updated 2026-07-28)
 **Core value:** An engineer with no programming knowledge can configure a system topology, run an
 optimization solve, and see dispatch/sizing results on screen — without notebooks or a fragile
 local Python environment.
-**Current focus:** Phase 2 — Server Foundations (Auth & Project Persistence)
+**Current focus:** Phase 3 — Configurar (Topology & Data Input UI)
 
 ## Current Position
 
-Phase: 2 of 6 (Server Foundations — Auth & Project Persistence)
+Phase: 3 of 6 (Configurar — Topology & Data Input UI)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-07-28 — Phase 1 (Engine API & Session Isolation) implemented directly and
-verified: full session REST API in `engine/src/optistor_engine/api/`, session isolation resolved,
-`engine/tests/test_api.py` passing (4/4 tests total including the pre-existing smoke test).
-PROJECT.md, REQUIREMENTS.md, ROADMAP.md updated to reflect completion.
+Last activity: 2026-07-28 — Phase 2 (Server Foundations — Auth & Project Persistence) implemented
+directly and verified against the *live* Supabase project (not just designed): Supabase JWT
+verification, org-scoped project persistence in SQLite, real internal/partner accounts tested
+end-to-end (partner correctly restricted, 404-not-403 on cross-org access, survives a restart).
+3 unit tests + manual verification. PROJECT.md, REQUIREMENTS.md, ROADMAP.md updated.
 
-Progress: [██░░░░░░░░] 17%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -65,9 +66,12 @@ Recent decisions affecting current work:
 - Phase 1 (2026-07-28): concurrency/session isolation resolved — in-memory `SessionManager`,
   UUID-keyed, per-session lock, blocking solves offloaded to a thread pool (see PROJECT.md Key
   Decisions and ROADMAP.md Phase 1 detail)
-- 7 decisions remain open (auth mechanism, persistence approach, multi-tenancy model, frontend
-  framework, charting library, tariff formula review, deployment target) — tracked in ROADMAP.md
-  "Open Decisions Tracker" and PROJECT.md Key Decisions
+- Phase 2 (2026-07-28): auth mechanism (Supabase Auth, dedicated `OptiStor` project), persistence
+  approach (SQLite via `sqlx`), and multi-tenancy model (`role`/`org_id` in Supabase `app_metadata`)
+  all resolved and verified against the live Supabase project (see PROJECT.md Key Decisions and
+  ROADMAP.md Phase 2 detail)
+- 4 decisions remain open (frontend framework, charting library, tariff formula review, deployment
+  target) — tracked in ROADMAP.md "Open Decisions Tracker" and PROJECT.md Key Decisions
 
 ### Pending Todos
 
@@ -79,10 +83,11 @@ None yet.
   has its own "check bracket"/"ask for the shift" comments. Must not reach a commercial proposal
   before Phase 5 closes it out; Phase 4's KPIs must ship visibly marked provisional in the
   meantime.
-- `SessionManager` is single-process, in-memory only — doesn't survive an `engine/` restart and
-  doesn't scale across multiple worker processes/replicas. Acceptable for v1 (Phase 2 handles
-  durable persistence separately, PROJ-02), but flag if Phase 6's deployment target needs multiple
-  `engine/` replicas.
+- `SessionManager` (engine, Phase 1) is single-process, in-memory only — doesn't survive an
+  `engine/` restart and doesn't scale across multiple worker processes/replicas. Acceptable for v1,
+  but flag if Phase 6's deployment target needs multiple `engine/` replicas.
+- Phase 3's login-page UI still needs to be built against the Supabase Auth REST API that Phase 2
+  verified works — not a new decision, just unfinished UI work carried forward.
 
 ## Deferred Items
 
@@ -96,8 +101,8 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-07-28
-Stopped at: Phase 1 complete and committed. Next up is Phase 2 (Server Foundations — Auth &
-Project Persistence), which has 3 open decisions to resolve before/during implementation: auth
-mechanism, client/project data model & persistence, and multi-tenancy/permission model (Open
-Decisions Tracker #2-4 in ROADMAP.md).
+Stopped at: Phase 2 complete, verified against the live Supabase project, and about to be
+committed. Next up is Phase 3 (Configurar — Topology & Data Input UI), which needs the frontend
+framework decision (Open Decisions Tracker #5) made before UI work starts, plus the actual
+login-page UI against the now-working Supabase Auth backend.
 Resume file: None

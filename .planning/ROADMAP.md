@@ -26,9 +26,9 @@ without addressing its row, that's a gap, not a resolution.
 | # | Decision | Resolved in | Status |
 |---|----------|-------------|--------|
 | 1 | Concurrency/session isolation model for engine solves (in-memory GEKKO `System` per session) | Phase 1 | **Resolved** — in-memory `SessionManager` keyed by UUID, async registry lock + per-session lock, blocking `solve()` offloaded to a thread pool (see Phase 1 detail) |
-| 2 | Authentication mechanism (internal team vs. external partner tiers) | Phase 2 | Pending |
-| 3 | Client/project data model & persistence (flat per-client files vs. real database) | Phase 2 | Pending |
-| 4 | Multi-tenancy / partner permission model | Phase 2 | Pending |
+| 2 | Authentication mechanism (internal team vs. external partner tiers) | Phase 2 | **Resolved** — Supabase Auth, dedicated `OptiStor` project (`fyqulandxyicawmvquxg`); `server/` verifies ES256 JWTs against Supabase's JWKS |
+| 3 | Client/project data model & persistence (flat per-client files vs. real database) | Phase 2 | **Resolved** — SQLite via `sqlx`; `organizations` + `projects` tables |
+| 4 | Multi-tenancy / partner permission model | Phase 2 | **Resolved** — `role`/`org_id` as Supabase `app_metadata` claims, enforced server-side; verified with real internal and partner JWTs |
 | 5 | Frontend framework (Leptos/WASM vs. server-rendered HTMX + Askama) | Phase 3 | Pending |
 | 6 | Charting library (Plotly.js vs. ECharts) | Phase 4 | Pending |
 | 7 | Tariff formula validity — domain/finance expert review of `get_index_tariff` family | Phase 5 | Pending |
@@ -47,7 +47,7 @@ before v1 — they're scope calls already made:
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 1: Engine API & Session Isolation** - Give `engine/` a full HTTP surface (topology, data, solve, results) that's safe for concurrent users
-- [ ] **Phase 2: Server Foundations — Auth & Project Persistence** - Give `server/` real login, permission tiers, and durable client/project storage
+- [x] **Phase 2: Server Foundations — Auth & Project Persistence** - Give `server/` real login, permission tiers, and durable client/project storage
 - [ ] **Phase 3: Configurar — Topology & Data Input UI** - Engineers build a system topology and enter all input data through a real UI, no code required
 - [ ] **Phase 4: Simular & Dashboard — Solve & Results UI** - Engineers trigger a solve and see energy flows, KPIs, and degradation on screen
 - [ ] **Phase 5: Tariff Formula Validation & Port** - Replace the unvalidated tariff math with a domain-reviewed, tested version before it's trusted in commercial numbers
@@ -124,14 +124,43 @@ model)
     `projects/senia/` pattern) vs. a real database, not decided (#3)
   - Multi-tenancy/permission model — not designed (#4)
 **Success Criteria** (what must be TRUE):
-  1. A user can log in via a login page with credentials appropriate to their access tier
-  2. An external partner can only see/access their own client's projects; internal staff have
+  1. ⚠️ A user can log in with credentials appropriate to their access tier — the *mechanism* is done
+     (Supabase Auth, verified end-to-end with a real account); the actual **login page** doesn't
+     exist yet, since no frontend framework is chosen until Phase 3. Not a gap in this phase's own
+     scope, just don't mistake it for a finished login screen.
+  2. ✅ An external partner can only see/access their own client's projects; internal staff have
      appropriately broader access
-  3. A project (topology + data + solve results) persists across server restarts and browser
+  3. ✅ A project (topology + data + solve results) persists across server restarts and browser
      sessions
-  4. A user can create, list, and reopen their own past projects
-**Plans**: TBD
-**UI hint**: yes
+  4. ✅ A user can create, list, and reopen their own past projects
+**Plans**: Implemented directly (no separate PLAN.md — same rationale as Phase 1).
+**Completed 2026-07-28.** What shipped, in `server/src/`:
+  - `auth.rs` — `JwtVerifier`: fetches and caches Supabase's JWKS (ES256 EC keys, 10-minute TTL,
+    auto-refetch on unknown `kid` in case of key rotation), verifies bearer tokens, and extracts
+    `role` (`internal`/`partner`) + `org_id` from the `app_metadata` claims into an `AuthUser` Axum
+    extractor. Resolves Open Decisions Tracker #2 and #4.
+  - `db.rs` — SQLite via `sqlx` (`migrations/0001_init.sql`: `organizations` + `projects` tables,
+    IDs stored as TEXT for easy inspection). Resolves Open Decisions Tracker #3.
+  - `projects.rs` — `POST /organizations` (internal-only), `POST /projects`, `GET /projects`,
+    `GET /projects/{id}`, all scoped by `org_id` for partner accounts; internal accounts (`org_id`
+    claim absent) see everything.
+  - **Verified against the live Supabase project, not just designed**: created a real test user,
+    toggled its `app_metadata` between `role: internal` and `role: partner` + `org_id` via direct
+    SQL (to avoid Supabase's email rate limit blocking a second signup), and confirmed with real
+    JWTs that (a) an internal account can create organizations and projects anywhere, (b) a partner
+    account listing projects only sees their own org's, (c) a partner fetching another org's
+    project by id gets 404 — not 403, so existence isn't leaked, (d) a partner trying to create an
+    organization gets 403, and (e) projects survive a full server restart. Test user deleted
+    afterward to leave the Supabase project clean.
+  - `db.rs` also has 3 checked-in `#[cfg(test)]` unit tests against an in-memory SQLite DB, covering
+    the same org-scoping logic deterministically without depending on live Supabase network calls.
+  - **Bug found and fixed during implementation**: `jsonwebtoken` v11 requires explicitly selecting
+    a crypto backend (`aws_lc_rs` or `rust_crypto`) or it panics on first use — not a code mistake,
+    a breaking change in that crate's v11 API. Fixed by enabling the `aws_lc_rs` feature, matching
+    the backend `reqwest` already pulls in via `rustls`.
+**Known gap, explicitly deferred, not silently dropped:** the actual login page UI. It's out of this
+phase's scope by design (no frontend framework chosen yet) and will be built in Phase 3 alongside
+the Configurar UI, calling straight into the Supabase Auth REST API this phase verified works.
 
 ### Phase 3: Configurar — Topology & Data Input UI
 **Goal**: Engineers with no programming knowledge can build a system topology and enter all
@@ -218,7 +247,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
 | 1. Engine API & Session Isolation | 1/1 | Done | 2026-07-28 |
-| 2. Server Foundations — Auth & Project Persistence | 0/TBD | Not started | - |
+| 2. Server Foundations — Auth & Project Persistence | 1/1 | Done | 2026-07-28 |
 | 3. Configurar — Topology & Data Input UI | 0/TBD | Not started | - |
 | 4. Simular & Dashboard — Solve & Results UI | 0/TBD | Not started | - |
 | 5. Tariff Formula Validation & Port | 0/TBD | Not started | - |
