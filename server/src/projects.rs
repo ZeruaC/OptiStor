@@ -71,7 +71,7 @@ async fn create_project(
     Ok(Json(project))
 }
 
-fn scope_for(user: &AuthUser) -> Option<Uuid> {
+pub fn scope_for(user: &AuthUser) -> Option<Uuid> {
     match user.role {
         Role::Partner => Some(user.org_id.expect("partner AuthUser always carries an org_id")),
         Role::Internal => None,

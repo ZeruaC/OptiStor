@@ -5,6 +5,7 @@ edition = "2024"
 authors = ["B. Ballesteros", "M. Ballesteros", "Balore Eng"]
 
 [dependencies]
+askama = "0.16.0"
 axum = "0.8.9"
 jsonwebtoken = { version = "11.0.0", features = ["aws_lc_rs"] }
 reqwest = { version = "0.13.4", features = ["json"] }

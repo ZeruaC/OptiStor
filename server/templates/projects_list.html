@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1>Proyectos</h1>
+
+{% if projects.is_empty() %}
+<p>Todavia no hay proyectos.</p>
+{% else %}
+<div class="project-list">
+    {% for p in projects %}
+    <a href="/app/projects/{{ p.id }}">{{ p.name }}</a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<h2>Nuevo proyecto</h2>
+<form method="post" action="/app/projects">
+    <label for="name">Nombre del proyecto</label>
+    <input type="text" id="name" name="name" required>
+
+    {% if is_internal %}
+    <label for="org_id">Organizacion (ID)</label>
+    <input type="text" id="org_id" name="org_id" required>
+    {% endif %}
+
+    <button type="submit">Crear</button>
+</form>
+{% endblock %}

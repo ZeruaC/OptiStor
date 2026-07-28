@@ -185,6 +185,19 @@ impl JwtVerifier {
     }
 }
 
+/// Name of the cookie the login page sets after a successful Supabase sign-in.
+pub const SESSION_COOKIE: &str = "optistor_token";
+
+/// Reads one named cookie out of a raw `Cookie` header value, without pulling
+/// in a cookie-jar crate for something this small.
+fn cookie_value<'a>(header_value: &'a str, name: &str) -> Option<&'a str> {
+    header_value.split(';').find_map(|pair| {
+        let pair = pair.trim();
+        let (key, value) = pair.split_once('=')?;
+        (key == name).then_some(value)
+    })
+}
+
 impl<S> FromRequestParts<S> for AuthUser
 where
     S: Send + Sync,
@@ -192,14 +205,26 @@ where
 {
     type Rejection = AuthError;
 
+    /// API-style callers (or HTMX requests configured to do so) send
+    /// `Authorization: Bearer <token>`; plain browser page navigations can't
+    /// easily attach custom headers, so those fall back to the session
+    /// cookie the login page sets.
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let verifier = Arc::<JwtVerifier>::from_ref(state);
-        let token = parts
+
+        let header_token = parts
             .headers
             .get(header::AUTHORIZATION)
             .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.strip_prefix("Bearer "))
-            .ok_or(AuthError::MissingToken)?;
+            .and_then(|v| v.strip_prefix("Bearer "));
+
+        let cookie_token = parts
+            .headers
+            .get(header::COOKIE)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| cookie_value(v, SESSION_COOKIE));
+
+        let token = header_token.or(cookie_token).ok_or(AuthError::MissingToken)?;
         verifier.verify(token).await
     }
 }

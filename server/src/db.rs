@@ -108,6 +108,19 @@ pub async fn list_projects(pool: &SqlitePool, org_id: Option<Uuid>) -> Result<Ve
     rows.into_iter().map(Project::try_from).collect()
 }
 
+pub async fn update_project_data(
+    pool: &SqlitePool,
+    id: Uuid,
+    data: &serde_json::Value,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE projects SET data = ?, updated_at = datetime('now') WHERE id = ?")
+        .bind(data.to_string())
+        .bind(id.to_string())
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 /// `org_id = None` means "internal user" — can fetch any project regardless of owner.
 pub async fn get_project(
     pool: &SqlitePool,

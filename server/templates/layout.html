@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Balore OptiStor</title>
+    <script src="/static/htmx.min.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+        h1, h2 { margin-top: 0; }
+        fieldset { border: 1px solid #ccc; border-radius: 6px; margin-bottom: 1.25rem; }
+        legend { font-weight: 600; padding: 0 0.5rem; }
+        label { display: block; margin: 0.5rem 0 0.2rem; font-size: 0.9rem; }
+        input[type=text], input[type=number], input[type=password], input[type=email], textarea, select {
+            width: 100%; box-sizing: border-box; padding: 0.4rem; font-size: 1rem;
+        }
+        textarea { min-height: 4rem; font-family: monospace; }
+        .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .row > div { flex: 1; min-width: 180px; }
+        .checkbox-row { display: flex; align-items: center; gap: 0.4rem; margin: 0.3rem 0; }
+        .checkbox-row input { width: auto; }
+        button { padding: 0.5rem 1.2rem; font-size: 1rem; cursor: pointer; }
+        .missing { background: #fff4e5; border: 1px solid #e0a030; border-radius: 6px; padding: 0.75rem 1rem; }
+        .missing.complete { background: #e7f7ec; border-color: #2fa360; }
+        .missing ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+        .error { color: #b00020; }
+        .project-list a { display: block; padding: 0.5rem 0; }
+        nav { margin-bottom: 1.5rem; font-size: 0.9rem; }
+        nav a { margin-right: 1rem; }
+    </style>
+</head>
+<body>
+    <nav><a href="/app/projects">Proyectos</a></nav>
+    {% block content %}{% endblock %}
+</body>
+</html>

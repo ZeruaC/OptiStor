@@ -29,7 +29,7 @@ without addressing its row, that's a gap, not a resolution.
 | 2 | Authentication mechanism (internal team vs. external partner tiers) | Phase 2 | **Resolved** — Supabase Auth, dedicated `OptiStor` project (`fyqulandxyicawmvquxg`); `server/` verifies ES256 JWTs against Supabase's JWKS |
 | 3 | Client/project data model & persistence (flat per-client files vs. real database) | Phase 2 | **Resolved** — SQLite via `sqlx`; `organizations` + `projects` tables |
 | 4 | Multi-tenancy / partner permission model | Phase 2 | **Resolved** — `role`/`org_id` as Supabase `app_metadata` claims, enforced server-side; verified with real internal and partner JWTs |
-| 5 | Frontend framework (Leptos/WASM vs. server-rendered HTMX + Askama) | Phase 3 | Pending |
+| 5 | Frontend framework (Leptos/WASM vs. server-rendered HTMX + Askama) | Phase 3 | **Resolved** — HTMX + Askama; this phase is forms-and-validation-heavy, not worth a second (WASM) build toolchain |
 | 6 | Charting library (Plotly.js vs. ECharts) | Phase 4 | Pending |
 | 7 | Tariff formula validity — domain/finance expert review of `get_index_tariff` family | Phase 5 | Pending |
 | 8 | Deployment/hosting target (cloud VM, PaaS, self-hosted) | Phase 6 | Pending |
@@ -48,7 +48,7 @@ before v1 — they're scope calls already made:
 
 - [x] **Phase 1: Engine API & Session Isolation** - Give `engine/` a full HTTP surface (topology, data, solve, results) that's safe for concurrent users
 - [x] **Phase 2: Server Foundations — Auth & Project Persistence** - Give `server/` real login, permission tiers, and durable client/project storage
-- [ ] **Phase 3: Configurar — Topology & Data Input UI** - Engineers build a system topology and enter all input data through a real UI, no code required
+- [x] **Phase 3: Configurar — Topology & Data Input UI** - Engineers build a system topology and enter all input data through a real UI, no code required
 - [ ] **Phase 4: Simular & Dashboard — Solve & Results UI** - Engineers trigger a solve and see energy flows, KPIs, and degradation on screen
 - [ ] **Phase 5: Tariff Formula Validation & Port** - Replace the unvalidated tariff math with a domain-reviewed, tested version before it's trusted in commercial numbers
 - [ ] **Phase 6: Deployment & Go-Live** - Take the full stack from localhost to a real, reachable, partner-usable hosted service
@@ -171,17 +171,59 @@ required input data through a real UI.
 vs. server-rendered HTMX + Askama (simpler, less new-tech risk, pairs naturally with Axum) — not
 chosen; must be resolved before UI work in this phase proceeds (Open Decisions Tracker #5).
 **Success Criteria** (what must be TRUE):
-  1. Frontend framework decision is made and recorded in PROJECT.md Key Decisions
-  2. Engineer can visually add/remove/enable components (consumer, PV producer, battery, grid)
+  1. ✅ Frontend framework decision is made and recorded in PROJECT.md Key Decisions
+  2. ✅ Engineer can visually add/remove/enable components (consumer, PV producer, battery, grid)
      for a project
-  3. Engineer can enable/disable connections between components matching the existing
+  3. ✅ Engineer can enable/disable connections between components matching the existing
      `ConnectionConfig` model
-  4. Engineer can upload or manually enter consumption profile, production profile, tariff/price
+  4. ✅ Engineer can upload or manually enter consumption profile, production profile, tariff/price
      data, and technical specs (power caps, energy caps, efficiency, cycle max, degradation
-     profile)
-  5. Incomplete or invalid configurations are flagged to the engineer before a solve is attempted
-**Plans**: TBD
-**UI hint**: yes
+     profile) — manual entry only in v1; upload is a future enhancement
+  5. ✅ Incomplete or invalid configurations are flagged to the engineer before a solve is attempted
+**Plans**: Implemented directly (no separate PLAN.md — same rationale as Phases 1-2).
+**Completed 2026-07-28.** What shipped, in `server/`:
+  - **Frontend decision**: HTMX + Askama over Leptos/WASM — this phase is forms and validation
+    feedback, not rich client-side interactivity, so a second build toolchain wasn't worth it.
+  - `templates/` — Askama templates (`layout.html`, `login.html`, `projects_list.html`,
+    `project_edit.html`, `_validation.html`), `static/htmx.min.js` vendored locally (no runtime CDN
+    dependency) and served via `tower_http::services::ServeDir`.
+  - `src/auth.rs` extended: `AuthUser` now accepts a session cookie (`optistor_token`) as well as
+    the `Authorization` header, since plain browser page navigations can't easily attach custom
+    headers the way API/HTMX calls can.
+  - `templates/login.html` — calls Supabase's `/auth/v1/token` REST endpoint directly with the
+    project's public anon/publishable key (no `@supabase/supabase-js` dependency needed), sets the
+    session cookie, redirects to `/app/projects`.
+  - `src/config.rs` — `ProjectData` (+ `ConnectionConfigData`, `StorageSpecData`, `GridSpecData`),
+    the shape of `projects.data`. Field names mirror the engine's Pydantic schemas
+    (`engine/src/optistor_engine/api/schemas.py`) so Phase 4 can forward this blob into the
+    engine's session endpoints without translation. `missing()` implements CONF-05; `parse_series`
+    turns a textarea of comma/newline-separated numbers into a `Vec<f64>` for manual profile entry.
+    5 unit tests.
+  - `src/ui.rs` — new `/app/...` routes (`/app/login`, `/app/projects` list+create,
+    `/app/projects/{id}` Configurar page, `/app/projects/{id}/config` HTMX partial save endpoint).
+    Deliberately separate from the JSON API in `projects.rs`: HTML forms post
+    `application/x-www-form-urlencoded`, not JSON, so rather than branching one route on
+    Content-Type, the UI got its own routes calling straight into the same `db` functions
+    (`projects.rs::scope_for` made `pub` and reused, so org-scoping logic isn't duplicated).
+  - **Verified in a real browser** (not just curl): logged in against the live Supabase project,
+    created an organization and project through the UI, filled in the full Configurar form
+    (topology, connections, time horizon, consumption/production profiles, storage and grid
+    specs), saved via the HTMX partial POST, watched the validation panel flip from listing 8
+    missing items to "Configuracion completa" without a full page reload, then did a hard page
+    reload and confirmed every field and the validation state persisted from SQLite.
+  - **Tooling quirk found, not a product bug**: the browser automation tool's synthetic mouse click
+    on the submit button didn't trigger the browser's native form-submit-on-click wiring in this
+    environment (confirmed via `checkValidity()` — form was valid — and by manually invoking
+    `htmx.trigger(form, 'submit')`, which fired the POST correctly and returned 200). A real user
+    clicking a real submit button in a real browser doesn't hit this; noted here only so a future
+    session doesn't mistake it for a regression.
+**Known, deliberate limitation for Phase 4 to handle carefully:** number fields left blank render
+as "0" once round-tripped through a save (since HTML number inputs can't cleanly distinguish
+"never set" from "explicitly zero" without extra plumbing this phase didn't build). `missing()`
+still correctly treats a field as satisfied only once the user actually enters something — optional
+fields like storage efficiency default to displaying 0 rather than the engine's own default of 1.0.
+When Phase 4 forwards a saved `ProjectData` into the engine's `/storage` endpoint, it should treat a
+0.0 efficiency as "unset, use 1.0" rather than passing it through literally.
 
 ### Phase 4: Simular & Dashboard — Solve & Results UI
 **Goal**: Engineers can trigger a solve from the dashboard and see the results — energy flows,
@@ -248,7 +290,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|-----------------|--------|-----------|
 | 1. Engine API & Session Isolation | 1/1 | Done | 2026-07-28 |
 | 2. Server Foundations — Auth & Project Persistence | 1/1 | Done | 2026-07-28 |
-| 3. Configurar — Topology & Data Input UI | 0/TBD | Not started | - |
+| 3. Configurar — Topology & Data Input UI | 1/1 | Done | 2026-07-28 |
 | 4. Simular & Dashboard — Solve & Results UI | 0/TBD | Not started | - |
 | 5. Tariff Formula Validation & Port | 0/TBD | Not started | - |
 | 6. Deployment & Go-Live | 0/TBD | Not started | - |

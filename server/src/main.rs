@@ -1,7 +1,9 @@
 mod auth;
+mod config;
 mod db;
 mod error;
 mod projects;
+mod ui;
 
 use std::env;
 use std::sync::Arc;
@@ -10,6 +12,7 @@ use axum::extract::FromRef;
 use axum::{routing::get, Json, Router};
 use serde_json::{json, Value};
 use sqlx::SqlitePool;
+use tower_http::services::ServeDir;
 
 use auth::JwtVerifier;
 
@@ -38,6 +41,13 @@ fn database_url() -> String {
     env::var("OPTISTOR_DATABASE_URL").unwrap_or_else(|_| "sqlite://optistor.db".to_string())
 }
 
+/// Supabase's publishable/anon key — meant to be public, embedded straight
+/// into the login page's client-side JS (see templates/login.html).
+fn supabase_publishable_key() -> String {
+    env::var("OPTISTOR_SUPABASE_PUBLISHABLE_KEY")
+        .unwrap_or_else(|_| "sb_publishable_LeRItnaGFYDsg_-z0-T5vQ_xPdZlx5L".to_string())
+}
+
 async fn health() -> Json<Value> {
     Json(json!({ "status": "ok", "service": "optistor-server" }))
 }
@@ -64,7 +74,9 @@ async fn main() {
         .route("/health", get(health))
         .route("/api/engine/health", get(engine_health))
         .merge(projects::router())
-        .with_state(state);
+        .merge(ui::router())
+        .with_state(state)
+        .nest_service("/static", ServeDir::new("static"));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8000")
         .await

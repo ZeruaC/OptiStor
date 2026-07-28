@@ -1,0 +1,78 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1>{{ project_name }}</h1>
+
+{% include "_validation.html" %}
+
+<form hx-post="/app/projects/{{ project_id }}/config" hx-target="#validation-panel" hx-swap="outerHTML">
+    <fieldset>
+        <legend>Topologia</legend>
+        <label for="objective">Objetivo</label>
+        <select id="objective" name="objective">
+            <option value="cost" {% if project_data.objective.as_deref() == Some("cost") %}selected{% endif %}>Minimizar coste</option>
+            <option value="energy" {% if project_data.objective.as_deref() == Some("energy") %}selected{% endif %}>Maximizar autoconsumo</option>
+        </select>
+
+        <div class="checkbox-row"><input type="checkbox" id="consumption_enabled" name="consumption_enabled" {% if project_data.consumption_enabled %}checked{% endif %}><label for="consumption_enabled">Consumidor</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="production_enabled" name="production_enabled" {% if project_data.production_enabled %}checked{% endif %}><label for="production_enabled">Productor (PV)</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="storage_enabled" name="storage_enabled" {% if project_data.storage_enabled %}checked{% endif %}><label for="storage_enabled">Bateria</label></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Conexiones habilitadas</legend>
+        <div class="checkbox-row"><input type="checkbox" id="c_ptc" name="production_to_consumption" {% if project_data.connections.production_to_consumption %}checked{% endif %}><label for="c_ptc">Productor -&gt; Consumidor</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="c_ptg" name="production_to_grid" {% if project_data.connections.production_to_grid %}checked{% endif %}><label for="c_ptg">Productor -&gt; Red</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="c_pts" name="production_to_storage" {% if project_data.connections.production_to_storage %}checked{% endif %}><label for="c_pts">Productor -&gt; Bateria</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="c_gtc" name="grid_to_consumption" {% if project_data.connections.grid_to_consumption %}checked{% endif %}><label for="c_gtc">Red -&gt; Consumidor</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="c_gts" name="grid_to_storage" {% if project_data.connections.grid_to_storage %}checked{% endif %}><label for="c_gts">Red -&gt; Bateria</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="c_stc" name="storage_to_consumption" {% if project_data.connections.storage_to_consumption %}checked{% endif %}><label for="c_stc">Bateria -&gt; Consumidor</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="c_stg" name="storage_to_grid" {% if project_data.connections.storage_to_grid %}checked{% endif %}><label for="c_stg">Bateria -&gt; Red</label></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Horizonte temporal</legend>
+        <div class="row">
+            <div><label for="time_period">Periodo (n. de puntos)</label><input type="number" id="time_period" name="time_period" value="{{ project_data.time_period.unwrap_or_default() }}"></div>
+            <div><label for="time_step">Paso (horas)</label><input type="number" step="0.1" id="time_step" name="time_step" value="{{ project_data.time_step.unwrap_or_default() }}"></div>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Perfiles (valores separados por coma)</legend>
+        <label for="consumption_values">Consumo (kW)</label>
+        <textarea id="consumption_values" name="consumption_values">{{ project_data.consumption_text() }}</textarea>
+        <label for="production_values">Produccion (kW)</label>
+        <textarea id="production_values" name="production_values">{{ project_data.production_text() }}</textarea>
+    </fieldset>
+
+    <fieldset>
+        <legend>Bateria</legend>
+        <div class="row">
+            <div><label for="charge_max">Potencia carga max (kW)</label><input type="number" step="any" id="charge_max" name="charge_max" value="{{ project_data.storage.charge_max.unwrap_or_default() }}"></div>
+            <div><label for="discharge_max">Potencia descarga max (kW)</label><input type="number" step="any" id="discharge_max" name="discharge_max" value="{{ project_data.storage.discharge_max.unwrap_or_default() }}"></div>
+        </div>
+        <div class="row">
+            <div><label for="energy_min">Energia min (kWh)</label><input type="number" step="any" id="energy_min" name="energy_min" value="{{ project_data.storage.energy_min.unwrap_or_default() }}"></div>
+            <div><label for="energy_max">Energia max (kWh)</label><input type="number" step="any" id="energy_max" name="energy_max" value="{{ project_data.storage.energy_max.unwrap_or_default() }}"></div>
+        </div>
+        <div class="row">
+            <div><label for="charge_eff">Eficiencia carga (0-1)</label><input type="number" step="any" id="charge_eff" name="charge_eff" value="{{ project_data.storage.charge_eff.unwrap_or_default() }}"></div>
+            <div><label for="discharge_eff">Eficiencia descarga (0-1)</label><input type="number" step="any" id="discharge_eff" name="discharge_eff" value="{{ project_data.storage.discharge_eff.unwrap_or_default() }}"></div>
+        </div>
+        <div class="row">
+            <div><label for="cycle_max">Ciclos maximos</label><input type="number" step="any" id="cycle_max" name="cycle_max" value="{{ project_data.storage.cycle_max.unwrap_or_default() }}"></div>
+            <div><label for="energy_init">Energia inicial (kWh)</label><input type="number" step="any" id="energy_init" name="energy_init" value="{{ project_data.storage.energy_init.unwrap_or_default() }}"></div>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Red</legend>
+        <div class="row">
+            <div><label for="export_max">Exportacion max (kW)</label><input type="number" step="any" id="export_max" name="export_max" value="{{ project_data.grid.export_max.unwrap_or_default() }}"></div>
+            <div><label for="import_max">Importacion max (kW)</label><input type="number" step="any" id="import_max" name="import_max" value="{{ project_data.grid.import_max.unwrap_or_default() }}"></div>
+        </div>
+    </fieldset>
+
+    <button type="submit">Guardar configuracion</button>
+</form>
+{% endblock %}

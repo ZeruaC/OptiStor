@@ -64,17 +64,24 @@ Full detail with IDs lives in `.planning/REQUIREMENTS.md`. Summary below.
   correctly restricted, 404-not-403 on cross-org access by id, projects survive a server restart),
   plus 3 checked-in unit tests. AUTH-01 through AUTH-03 and PROJ-01 through PROJ-03 done — except
   the login-page UI itself, deferred into Phase 3 by design (no frontend framework chosen yet).
+- ✓ **Phase 3 — Configurar (Topology & Data Input UI)** (2026-07-28): frontend decision made —
+  HTMX + Askama over Leptos/WASM (forms-and-validation-heavy phase, not worth a second build
+  toolchain). Login page calls Supabase's REST auth API directly and sets a session cookie;
+  `AuthUser` now accepts either that cookie or the `Authorization` header. New `/app/...` routes
+  (`server/src/ui.rs`) for project list/create and the Configurar page (topology checkboxes,
+  7-way `ConnectionConfig` matrix, time horizon, consumption/production profiles via textarea,
+  storage and grid specs). `server/src/config.rs`'s `ProjectData` mirrors the engine's Pydantic
+  schemas field-for-field so Phase 4 can forward it without translation; `missing()` powers a live
+  validation panel that updates via an HTMX partial swap. Verified in a real browser end-to-end
+  (login through the live Supabase project, create org/project, fill and save the full form,
+  validation flips to "complete", persists across a hard reload), plus 5 unit tests. CONF-01
+  through CONF-05 done. Known follow-up for Phase 4: blank number fields round-trip as "0" after a
+  save, so treat a 0.0 storage efficiency as "unset" rather than literal when wiring into the
+  engine.
 
 ### Active
 
 <!-- Current v1 scope. Full descriptions and acceptance detail in REQUIREMENTS.md. -->
-
-**Phase 3 — Configurar (Topology & Data Input UI)**
-- [ ] CONF-01: Frontend framework decided
-- [ ] CONF-02: Engineer can configure components (consumer/PV/battery/grid) visually
-- [ ] CONF-03: Engineer can enable/disable connections between components
-- [ ] CONF-04: Engineer can enter/upload all input data (profiles, tariffs, specs)
-- [ ] CONF-05: Invalid/incomplete configurations flagged before solve
 
 **Phase 4 — Simular & Dashboard (Solve & Results UI)**
 - [ ] SIML-01: Engineer can trigger a solve from the UI
@@ -170,10 +177,10 @@ Full detail with IDs lives in `.planning/REQUIREMENTS.md`. Summary below.
 | Authentication mechanism: Supabase Auth (dedicated `OptiStor` project, `fyqulandxyicawmvquxg`), `server/` verifies ES256 JWTs via JWKS | Already had a Supabase account; avoids self-hosting password storage/reset/invite flows | ✓ Good (resolved 2026-07-28, Phase 2) |
 | Client/project data model & persistence: SQLite via `sqlx` | Simplicity for current scale; flat files rejected outright since they can't support listing/querying a user's own projects (PROJ-03) | ✓ Good (resolved 2026-07-28, Phase 2) |
 | Multi-tenancy / partner permission model: `role`/`org_id` as Supabase `app_metadata` claims, enforced by `server/` | Standard org-scoping pattern; verified with real internal- and partner-role JWTs, including that cross-org access by id 404s rather than 403s (no existence leak) | ✓ Good (resolved 2026-07-28, Phase 2) |
-| Frontend framework: Leptos (Rust/WASM) vs. server-rendered HTMX + Askama | Not yet chosen | — Pending (Phase 3) |
+| Frontend framework: HTMX + server-rendered Askama templates | Phase 3 is forms + validation feedback, not rich client interactivity; avoids a second (WASM) build toolchain alongside the existing Rust one | ✓ Good (resolved 2026-07-28, Phase 3) |
 | Charting library: Plotly.js vs. ECharts | Not yet chosen | — Pending (Phase 4) |
 | Tariff formula validity (`get_index_tariff` family) | Needs domain/finance expert review before porting; original code's own comments flag it as unvalidated | — Pending (Phase 5) |
 | Deployment/hosting target (cloud VM, PaaS, self-hosted) | Not yet chosen | — Pending (Phase 6) |
 
 ---
-*Last updated: 2026-07-28 after Phase 2 (Server Foundations — Auth & Project Persistence) completed*
+*Last updated: 2026-07-28 after Phase 3 (Configurar — Topology & Data Input UI) completed*

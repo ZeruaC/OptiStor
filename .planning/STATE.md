@@ -3,10 +3,10 @@ gsd_state_version: '1.0'
 status: in_progress
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
-  percent: 33
+  completed_phases: 3
+  total_plans: 3
+  completed_plans: 3
+  percent: 50
 ---
 
 # Project State
@@ -18,20 +18,21 @@ See: .planning/PROJECT.md (updated 2026-07-28)
 **Core value:** An engineer with no programming knowledge can configure a system topology, run an
 optimization solve, and see dispatch/sizing results on screen — without notebooks or a fragile
 local Python environment.
-**Current focus:** Phase 3 — Configurar (Topology & Data Input UI)
+**Current focus:** Phase 4 — Simular & Dashboard (Solve & Results UI)
 
 ## Current Position
 
-Phase: 3 of 6 (Configurar — Topology & Data Input UI)
+Phase: 4 of 6 (Simular & Dashboard — Solve & Results UI)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-07-28 — Phase 2 (Server Foundations — Auth & Project Persistence) implemented
-directly and verified against the *live* Supabase project (not just designed): Supabase JWT
-verification, org-scoped project persistence in SQLite, real internal/partner accounts tested
-end-to-end (partner correctly restricted, 404-not-403 on cross-org access, survives a restart).
-3 unit tests + manual verification. PROJECT.md, REQUIREMENTS.md, ROADMAP.md updated.
+Last activity: 2026-07-28 — Phase 3 (Configurar — Topology & Data Input UI) implemented directly
+and verified in a real browser session: HTMX + Askama chosen as the frontend, login page against
+the live Supabase project, project create + full Configurar form (topology, connections, time
+horizon, profiles, storage/grid specs) filled in and saved via an HTMX partial POST, validation
+panel correctly flipped to "complete" and persisted across a hard reload. 5 unit tests.
+PROJECT.md, REQUIREMENTS.md, ROADMAP.md updated.
 
-Progress: [███░░░░░░░] 33%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -70,8 +71,11 @@ Recent decisions affecting current work:
   approach (SQLite via `sqlx`), and multi-tenancy model (`role`/`org_id` in Supabase `app_metadata`)
   all resolved and verified against the live Supabase project (see PROJECT.md Key Decisions and
   ROADMAP.md Phase 2 detail)
-- 4 decisions remain open (frontend framework, charting library, tariff formula review, deployment
-  target) — tracked in ROADMAP.md "Open Decisions Tracker" and PROJECT.md Key Decisions
+- Phase 3 (2026-07-28): frontend framework resolved — HTMX + server-rendered Askama templates,
+  chosen over Leptos/WASM since this phase is forms + validation, not rich client interactivity
+  (see PROJECT.md Key Decisions and ROADMAP.md Phase 3 detail)
+- 3 decisions remain open (charting library, tariff formula review, deployment target) — tracked
+  in ROADMAP.md "Open Decisions Tracker" and PROJECT.md Key Decisions
 
 ### Pending Todos
 
@@ -86,8 +90,9 @@ None yet.
 - `SessionManager` (engine, Phase 1) is single-process, in-memory only — doesn't survive an
   `engine/` restart and doesn't scale across multiple worker processes/replicas. Acceptable for v1,
   but flag if Phase 6's deployment target needs multiple `engine/` replicas.
-- Phase 3's login-page UI still needs to be built against the Supabase Auth REST API that Phase 2
-  verified works — not a new decision, just unfinished UI work carried forward.
+- Phase 4 needs to treat a saved `ProjectData` storage efficiency of 0.0 as "unset, use 1.0" when
+  forwarding into the engine's `/storage` endpoint — a Phase 3 form limitation (blank number
+  fields round-trip as "0" after a save), not a new decision, just a wiring detail to get right.
 
 ## Deferred Items
 
@@ -101,8 +106,9 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-07-28
-Stopped at: Phase 2 complete, verified against the live Supabase project, and about to be
-committed. Next up is Phase 3 (Configurar — Topology & Data Input UI), which needs the frontend
-framework decision (Open Decisions Tracker #5) made before UI work starts, plus the actual
-login-page UI against the now-working Supabase Auth backend.
+Stopped at: Phase 3 complete, verified in a real browser session, and about to be committed. Next
+up is Phase 4 (Simular & Dashboard), which needs the charting library decision (Open Decisions
+Tracker #6) made, then: a solve-trigger button that forwards a project's stored `ProjectData` into
+the engine's session API (Phase 1), an energy-flow chart, KPI display (marked provisional pending
+Phase 5's tariff validation), and a battery degradation/SoH curve.
 Resume file: None

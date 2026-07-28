@@ -61,16 +61,22 @@ Requirements for the initial release. Each maps to exactly one roadmap phase (se
 
 ### Configurar — Topology & Data Input UI (CONF)
 
-- [ ] **CONF-01**: A decision on the dashboard frontend framework (Leptos vs. server-rendered
-  HTMX + Askama) is made and documented
-- [ ] **CONF-02**: Engineer can visually add/remove/enable system components (consumer, PV
-  producer, battery, grid) for a project, with no programming knowledge required
-- [ ] **CONF-03**: Engineer can enable/disable connections between components through the UI,
-  matching the `ConnectionConfig` model
-- [ ] **CONF-04**: Engineer can upload or manually enter consumption profile, production profile,
-  tariff/price data, and technical specs through the UI
-- [ ] **CONF-05**: Incomplete or invalid configurations are flagged to the engineer in the UI
-  before a solve is attempted
+- [x] **CONF-01**: A decision on the dashboard frontend framework (Leptos vs. server-rendered
+  HTMX + Askama) is made and documented — HTMX + Askama, chosen for this phase's forms-and-
+  validation-heavy nature over adding a second (WASM) build toolchain (2026-07-28)
+- [x] **CONF-02**: Engineer can visually add/remove/enable system components (consumer, PV
+  producer, battery, grid) for a project, with no programming knowledge required — checkboxes on
+  the Configurar page (2026-07-28)
+- [x] **CONF-03**: Engineer can enable/disable connections between components through the UI,
+  matching the `ConnectionConfig` model — 7-checkbox connection matrix (2026-07-28)
+- [x] **CONF-04**: Engineer can upload or manually enter consumption profile, production profile,
+  tariff/price data, and technical specs through the UI — manual entry via textareas (comma/
+  newline-separated) and number fields satisfies the "or manually enter" half of this requirement;
+  CSV upload is a possible future enhancement, not required to close this item (2026-07-28)
+- [x] **CONF-05**: Incomplete or invalid configurations are flagged to the engineer in the UI
+  before a solve is attempted — `ProjectData::missing()` renders a live validation panel, updated
+  via an HTMX partial swap on save without a full page reload; verified in a real browser session
+  (2026-07-28)
 
 ### Simular — Solve Trigger (SIML)
 
@@ -153,11 +159,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROJ-01 | Phase 2 | Done |
 | PROJ-02 | Phase 2 | Done |
 | PROJ-03 | Phase 2 | Done |
-| CONF-01 | Phase 3 | Pending |
-| CONF-02 | Phase 3 | Pending |
-| CONF-03 | Phase 3 | Pending |
-| CONF-04 | Phase 3 | Pending |
-| CONF-05 | Phase 3 | Pending |
+| CONF-01 | Phase 3 | Done |
+| CONF-02 | Phase 3 | Done |
+| CONF-03 | Phase 3 | Done |
+| CONF-04 | Phase 3 | Done |
+| CONF-05 | Phase 3 | Done |
 | SIML-01 | Phase 4 | Pending |
 | SIML-02 | Phase 4 | Pending |
 | DASH-01 | Phase 4 | Pending |
@@ -177,4 +183,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-07-28*
-*Last updated: 2026-07-28 after Phase 2 (Server Foundations — Auth & Project Persistence) completed*
+*Last updated: 2026-07-28 after Phase 3 (Configurar — Topology & Data Input UI) completed*

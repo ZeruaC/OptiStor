@@ -1,0 +1,12 @@
+<div id="validation-panel" class="missing {% if missing.is_empty() %}complete{% endif %}">
+    {% if missing.is_empty() %}
+    <strong>Configuracion completa.</strong> Lista para simular (Fase 4).
+    {% else %}
+    <strong>Falta completar:</strong>
+    <ul>
+        {% for m in missing %}
+        <li>{{ m }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
