@@ -141,12 +141,19 @@ formula for any specific country) are still blocked on domain/finance input and 
 
 ### Deployment & Go-Live (DEPLOY)
 
-- [ ] **DEPLOY-01**: A decision on the deployment/hosting target (cloud VM, PaaS, self-hosted) is
-  made and documented
+- [x] **DEPLOY-01**: A decision on the deployment/hosting target (cloud VM, PaaS, self-hosted) is
+  made and documented — Fly.io, chosen for persistent volumes (SQLite), private inter-app
+  networking (keeps `engine/` off the public internet), built-in TLS, and low ops overhead for a
+  small team; see `DEPLOYMENT.md` (2026-07-28)
 - [ ] **DEPLOY-02**: `server/` and `engine/` are deployed and reachable at a real, non-localhost
-  URL
+  URL — **not done**. Dockerfiles, `fly.toml` configs, and a `docker-compose.yml` exist and were
+  reviewed by hand, but **Docker isn't installed in the environment this was built in** (no
+  `docker`, no WSL distro), so none of it has actually been built or run. Fixed one real bug found
+  by inspection: `server/` was bound to `127.0.0.1`, which is unreachable from outside a container
+  — changed to `0.0.0.0` (configurable via `OPTISTOR_BIND_ADDR`)
 - [ ] **DEPLOY-03**: The full Configurar→Simular→Dashboard flow works end-to-end against the
-  deployed instance for both an internal account and an external-partner account
+  deployed instance for both an internal account and an external-partner account — blocked on
+  DEPLOY-02
 
 ## v2 Requirements
 
@@ -211,8 +218,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIN-03 | Phase 5 | Pending |
 | FIN-04 | Phase 5 | Done |
 | FIN-05 | Phase 5 | Done |
-| DEPLOY-01 | Phase 6 | Pending |
-| DEPLOY-02 | Phase 6 | Pending |
+| DEPLOY-01 | Phase 6 | Done |
+| DEPLOY-02 | Phase 6 | Pending (artifacts unverified — no Docker in this environment) |
 | DEPLOY-03 | Phase 6 | Pending |
 
 **Coverage:**
@@ -223,5 +230,6 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-07-28*
-*Last updated: 2026-07-28 — Phase 5 framework (FIN-04, FIN-05) built; FIN-01..03 still open,
-blocked on domain/finance tariff formula input, not a technical gap*
+*Last updated: 2026-07-28 — Phase 6 deployment artifacts built (DEPLOY-01 done, DEPLOY-02/03
+pending real verification — no Docker available in this environment). Phase 5 framework (FIN-04,
+FIN-05) built; FIN-01..03 still open, blocked on domain/finance tariff formula input*

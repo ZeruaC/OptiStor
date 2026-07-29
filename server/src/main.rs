@@ -82,11 +82,14 @@ async fn main() {
         .with_state(state)
         .nest_service("/static", ServeDir::new("static"));
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:8000")
-        .await
-        .expect("failed to bind port 8000");
+    // 0.0.0.0 so the server is reachable from outside its container in
+    // Docker/Fly.io — binding to 127.0.0.1 works locally but is invisible
+    // to anything outside the container's own network namespace.
+    let bind_addr = env::var("OPTISTOR_BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:8000".to_string());
+    let listener =
+        tokio::net::TcpListener::bind(&bind_addr).await.expect("failed to bind address");
 
-    println!("optistor-server listening on http://127.0.0.1:8000");
+    println!("optistor-server listening on http://{bind_addr}");
 
     axum::serve(listener, app).await.expect("server error");
 }

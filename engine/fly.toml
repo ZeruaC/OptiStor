@@ -1,0 +1,15 @@
+# Fly.io app config for the Python optimization microservice. Deliberately
+# has no public [http_service]/[[services]] port — it should only be
+# reachable from server/ over Fly's private 6PN network
+# (optistor-engine.internal:8001), never from the public internet.
+# Adjust `app`/`primary_region` to whatever you actually provision.
+app = "optistor-engine"
+primary_region = "mad"
+
+[build]
+
+[[vm]]
+  size = "shared-cpu-1x"
+
+[processes]
+  app = "uvicorn optistor_engine.main:app --app-dir src --host 0.0.0.0 --port 8001"

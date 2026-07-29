@@ -32,7 +32,7 @@ without addressing its row, that's a gap, not a resolution.
 | 5 | Frontend framework (Leptos/WASM vs. server-rendered HTMX + Askama) | Phase 3 | **Resolved** — HTMX + Askama; this phase is forms-and-validation-heavy, not worth a second (WASM) build toolchain |
 | 6 | Charting library (Plotly.js vs. ECharts) | Phase 4 | **Resolved** — Apache ECharts, chosen for visual polish over Plotly's more utilitarian defaults, to get closer to PVSyst-caliber report aesthetics |
 | 7 | Tariff formula validity — domain/finance expert review, now for a fresh per-country formula (Spain, El Salvador) rather than just validating `get_index_tariff` | Phase 5 | **Pending** — framework to receive the answer is built; the formulas themselves are not provided yet |
-| 8 | Deployment/hosting target (cloud VM, PaaS, self-hosted) | Phase 6 | Pending |
+| 8 | Deployment/hosting target (cloud VM, PaaS, self-hosted) | Phase 6 | **Resolved** — Fly.io; artifacts built but unverified (no Docker in this environment) |
 
 Two additional known items from the brief are deliberately *not* decision points needing resolution
 before v1 — they're scope calls already made:
@@ -353,20 +353,56 @@ implemented, its actual input requirements (and the UI to collect them) become r
 don't assume the plumbing here is "input-complete."
 
 ### Phase 6: Deployment & Go-Live
+**Status: IN PROGRESS, not done.** Deployment artifacts are built and hand-reviewed; nothing has
+actually run in a container or reached a real URL yet, because Docker isn't available in the
+environment this was built in.
+
 **Goal**: The full stack runs as a real, always-on hosted service partners can reach and log into
 — not just localhost dev servers.
-**Depends on**: Phases 1-5 (needs the complete, validated Configurar→Simular→Dashboard flow to be
-worth deploying)
-**Requirements**: DEPLOY-01, DEPLOY-02, DEPLOY-03
-**Decision point**: Deployment/hosting target — cloud VM, PaaS, or self-hosted — not chosen (Open
-Decisions Tracker #8).
+
+**Note**: worked in parallel with Phase 5's tariff research, at Benja's request — this phase
+doesn't depend on Phase 5 finishing (only on Phases 1-4's flow being solid, which it is); Phase 5's
+provisional tariff is a known, accepted placeholder for what gets deployed here.
+
+**Depends on**: Phases 1-4 (the validated Configurar→Simular→Dashboard flow). Explicitly does NOT
+wait on Phase 5's tariff formula — deploying with the provisional tariff still in place is fine.
+**Requirements**: DEPLOY-01 (done), DEPLOY-02, DEPLOY-03 (open)
+**Decision point**: Deployment/hosting target — **resolved**: Fly.io (Open Decisions Tracker #8).
 **Success Criteria** (what must be TRUE):
-  1. Deployment/hosting target decision is made and recorded in PROJECT.md Key Decisions
-  2. `server/` and `engine/` are deployed and reachable at a real, non-localhost URL
-  3. The full Configurar→Simular→Dashboard flow works end-to-end against the deployed instance
-     for both an internal account and an external-partner account
-  4. Both services' `/health` endpoints are monitored in production
-**Plans**: TBD
+  1. ✅ Deployment/hosting target decision is made and recorded in PROJECT.md Key Decisions
+  2. ⬜ `server/` and `engine/` are deployed and reachable at a real, non-localhost URL —
+     **not done**, blocked on Docker verification then actual Fly.io provisioning
+  3. ⬜ The full Configurar→Simular→Dashboard flow works end-to-end against the deployed instance
+     for both an internal account and an external-partner account — blocked on #2
+  4. ⬜ Both services' `/health` endpoints are monitored in production — blocked on #2
+**Plans**: Implemented directly (no separate PLAN.md — same rationale as Phases 1-5), for the
+artifact-preparation portion only.
+**What shipped 2026-07-28 (artifacts, unverified):**
+  - **Hosting decision**: Fly.io — persistent volumes for the SQLite file, private inter-app
+    networking (`*.internal`) so `engine/` never touches the public internet, built-in TLS, simple
+    `flyctl deploy` workflow appropriate for a small team.
+  - `server/Dockerfile` — multi-stage build; askama templates and sqlx migrations are compiled
+    into the binary at build time (confirmed by re-reading how those macros work), so the runtime
+    image only needs the binary + `static/`.
+  - `engine/Dockerfile` — Python 3.11-slim + engine deps, with `libgfortran5` installed
+    proactively since GEKKO's bundled local-solver binary is Fortran-compiled and slim images
+    often lack that runtime library — flagged as the single highest-risk unverified assumption.
+  - `server/fly.toml`, `engine/fly.toml`, root `docker-compose.yml`, `.dockerignore` in both
+    service directories.
+  - **Real bug found and fixed by inspection, not testing**: `server/` bound to `127.0.0.1:8000`,
+    which is unreachable from outside a container regardless of port mapping. Changed to `0.0.0.0`
+    (configurable via `OPTISTOR_BIND_ADDR`), confirmed the change doesn't break local dev (health
+    check still passes against `127.0.0.1` locally since that always resolves to the same host).
+  - `DEPLOYMENT.md` written documenting the decision, what exists, exactly what's unverified and
+    why, the remaining manual steps, and the production environment variables needed.
+**Known gap, not silently glossed over**: **Docker is not installed in this environment** — no
+`docker` binary, no WSL distribution — so none of the Dockerfiles, `fly.toml` configs, or
+`docker-compose.yml` have actually been built or run. They were written carefully (checked against
+how askama/sqlx compile-time embedding actually works, checked that `Cargo.lock` is committed,
+etc.) but "carefully written" is not the same claim as "verified." Before any real Fly.io
+provisioning: get Docker access, run `docker compose up --build`, and specifically confirm the
+engine can *solve* inside its container, not just start — that's where the GEKKO/Fortran risk
+lives.
 
 ## Progress
 
@@ -380,4 +416,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Configurar — Topology & Data Input UI | 1/1 | Done | 2026-07-28 |
 | 4. Simular & Dashboard — Solve & Results UI | 1/1 | Done | 2026-07-28 |
 | 5. Tariff Formula Validation & Port | 1/2 | In progress (framework done, formulas pending) | - |
-| 6. Deployment & Go-Live | 0/TBD | Not started | - |
+| 6. Deployment & Go-Live | 1/2 | In progress (artifacts unverified, no Docker available) | - |

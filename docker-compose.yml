@@ -1,0 +1,29 @@
+# Local "production-like" verification — build both images and run them
+# together the way they'll talk to each other in production (server ->
+# engine over the Docker network, not localhost). Not used for actual
+# deployment (that's fly.toml per service); this is just so the Docker
+# setup can be sanity-checked before anyone pays for real infrastructure.
+#
+#   docker compose up --build
+#   curl http://localhost:8000/health
+#   curl http://localhost:8000/api/engine/health
+services:
+  engine:
+    build: ./engine
+    expose:
+      - "8001"
+
+  server:
+    build: ./server
+    ports:
+      - "8000:8000"
+    environment:
+      OPTISTOR_ENGINE_URL: "http://engine:8001"
+      OPTISTOR_DATABASE_URL: "sqlite:///data/optistor.db"
+    volumes:
+      - optistor_data:/data
+    depends_on:
+      - engine
+
+volumes:
+  optistor_data:

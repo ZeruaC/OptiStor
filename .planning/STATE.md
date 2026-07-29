@@ -4,8 +4,8 @@ status: in_progress
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 6
   percent: 67
 ---
 
@@ -18,25 +18,26 @@ See: .planning/PROJECT.md (updated 2026-07-28)
 **Core value:** An engineer with no programming knowledge can configure a system topology, run an
 optimization solve, and see dispatch/sizing results on screen — without notebooks or a fragile
 local Python environment.
-**Current focus:** Phase 5 — Tariff Formula Validation & Port
+**Current focus:** Phase 5 (Tariff Formula Validation & Port) and Phase 6 (Deployment & Go-Live),
+worked in parallel at Benja's request — Phase 6 doesn't need Phase 5 finished first.
 
 ## Current Position
 
-Phase: 5 of 6 (Tariff Formula Validation & Port) — IN PROGRESS, not complete
-Plan: 1 of ~2 in current phase (framework plan done; the "port validated formula" plan is blocked)
-Status: Blocked on external input (domain/finance tariff formula), not on Claude
-Last activity: 2026-07-28 — Phase 5's scope grew from "port one Spain formula" to "build a
-multi-jurisdiction tariff framework" (projects are international; location determines
-regulation/prices; clients/projects in the same country share setup). Built and verified against
-the live engine: a shared `Market` entity (server), a pluggable `TariffModel` framework in
-`engine/tariffs/` with Spain/El Salvador as explicit `TariffPending` stubs, a stateless
-`/tariffs/{key}/compute` endpoint, and `engine_client.rs` wired to attempt the real model and fall
-back to the provisional flat tariff on any failure — confirmed the exact fallback sequence in
-engine logs (501 pending -> solve proceeds anyway -> 200). FIN-04/05 done; FIN-01/02/03 (an actual
-validated formula) remain open, blocked on Benja/domain-finance input, not a technical gap.
-PROJECT.md, REQUIREMENTS.md, ROADMAP.md updated to reflect partial completion honestly.
+Phase: 5 AND 6 of 6, both IN PROGRESS, neither complete
+Plan: Phase 5 — framework plan done, "port validated formula" plan blocked. Phase 6 — artifact
+plan done, "verify + provision" plan blocked.
+Status: Both blocked on external input/resources, not on Claude — Phase 5 needs a domain/finance
+tariff formula; Phase 6 needs Docker (not installed in this environment) and then a real Fly.io
+account.
+Last activity: 2026-07-28 — Phase 6: decided Fly.io, wrote Dockerfiles/fly.toml/docker-compose for
+both services, found and fixed a real bug by inspection (`server/` bound to `127.0.0.1`, invisible
+outside a container — now `0.0.0.0`), wrote `DEPLOYMENT.md`. Explicitly could not verify any of it
+— no `docker`, no WSL distribution available. In parallel, a background research agent investigated
+Spain and El Salvador's actual tariff regulation (CNMC/BOE for Spain, SIGET/UT for El Salvador) —
+see Pending Todos, its report needs to be read and relayed to Benja next turn, not yet done.
+PROJECT.md, REQUIREMENTS.md, ROADMAP.md updated to reflect both phases' partial completion.
 
-Progress: [██████░░░░] 67% (4 of 6 phases fully done; Phase 5 partially done)
+Progress: [██████░░░░] 67% (4 of 6 phases fully done; Phases 5 and 6 both partially done)
 
 ## Performance Metrics
 
@@ -85,12 +86,21 @@ Recent decisions affecting current work:
   entity + pluggable `TariffModel` registry, confirmed via research that El Salvador and Nicaragua
   don't share a unified MER price so each is its own `Market`. The tariff formula itself (which
   this decision framework exists to receive) is still open — see Blockers/Concerns.
-- 2 decisions remain open (tariff formula for Spain/El Salvador, deployment target) — tracked in
-  ROADMAP.md "Open Decisions Tracker" and PROJECT.md Key Decisions
+- Phase 6 (2026-07-28, partial): deployment target resolved — Fly.io, for persistent SQLite
+  volumes, private inter-app networking, built-in TLS, low ops overhead (see PROJECT.md Key
+  Decisions and ROADMAP.md Phase 6 detail). Artifacts built but unverified.
+- 1 decision remains open (tariff formula for Spain/El Salvador) — tracked in ROADMAP.md "Open
+  Decisions Tracker" and PROJECT.md Key Decisions
 
 ### Pending Todos
 
-None yet.
+- A background research agent's tariff-formula report is sitting unread at
+  `C:\Users\Ben\AppData\Local\Temp\claude\F--batopt\81866d14-1e1a-4828-a3bc-fcd78e380ef9\scratchpad\tariff_research.md`
+  (a session-scoped scratch path — move/copy anything worth keeping into the repo or a durable
+  note before that session's temp directory is gone). Needs to be read and relayed to Benja next
+  turn; findings are NOT yet reflected in `engine/tariffs/spain.py` or `el_salvador.py` and must
+  not be coded up without his sign-off (per the agent's own instructions and Phase 5's FIN-01
+  requirement — domain/finance expert confirmation, not an AI's best guess).
 
 ### Blockers/Concerns
 
@@ -122,6 +132,13 @@ None yet.
   `/tariffs/{key}/compute` today; harmless only because every model currently ignores its input
   and raises `TariffPending` unconditionally. Don't mistake this plumbing for "input-complete" —
   real formulas will need real input collection built alongside them.
+- **Docker is not installed in this environment** — no `docker` binary, no WSL distribution. Every
+  Phase 6 artifact (`server/Dockerfile`, `engine/Dockerfile`, both `fly.toml`s,
+  `docker-compose.yml`) was written and hand-reviewed but never actually built or run. The single
+  biggest unverified risk: whether GEKKO's bundled Fortran-compiled local solver binary actually
+  runs inside the `python:3.11-slim` container — added `libgfortran5` proactively as a likely
+  requirement, but this is a guess, not a confirmed fix. Get Docker access before trusting any of
+  it, and specifically confirm the engine can *solve*, not just start.
 
 ## Deferred Items
 
@@ -135,13 +152,15 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-07-28
-Stopped at: Phase 5's framework (FIN-04/05) built and verified against the live engine, about to be
-committed. **Phase 5 is not complete** — FIN-01/02/03 need an actual validated tariff formula for
-at least Spain or El Salvador, which is a domain/finance decision, not a technical one Claude can
-make. Next concrete step: get that formula from Benja (or whoever he delegates to), including
-clarifying what raw inputs it needs (e.g. does it need a spot-price series? if so from where?),
-then implement it in `engine/tariffs/{spain,el_salvador}.py` replacing the `TariffPending` stub,
-add a worked-example test, and only then remove the dashboard's "provisional" flag. Until that
-lands, Phase 6 (deployment) could reasonably be worked in parallel if Benja prefers, since it
-doesn't depend on Phase 5 being finished, only on Phases 1-4's flow being solid (which it is).
+Stopped at: Phase 6's deployment artifacts (Fly.io, Dockerfiles, fly.toml, docker-compose,
+DEPLOYMENT.md) built and about to be committed, worked in parallel with a background research
+agent investigating Spain/El Salvador tariff regulation (per Benja's explicit request to do both
+at once). Neither Phase 5 nor Phase 6 is complete:
+- **Phase 5**: needs an actual validated tariff formula from Benja (domain/finance decision, not
+  technical). The research agent's findings are ready at
+  `.../scratchpad/tariff_research.md` (session-scoped path, not yet relayed to Benja or copied
+  anywhere durable) — next step is reading that report and presenting it to him for confirmation,
+  NOT coding it up unilaterally.
+- **Phase 6**: needs Docker access to verify the artifacts actually build/run (specifically
+  whether GEKKO solves inside the container), then a real Fly.io account to provision against.
 Resume file: None

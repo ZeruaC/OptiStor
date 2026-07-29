@@ -30,3 +30,7 @@ cargo run
 ```
 
 El servidor escucha en `http://127.0.0.1:8000`, el motor en `http://127.0.0.1:8001`. `GET /api/engine/health` en el servidor confirma que ambos se comunican correctamente.
+
+## Despliegue
+
+Ver [DEPLOYMENT.md](DEPLOYMENT.md) — destino elegido (Fly.io), Dockerfiles, y que falta verificar antes de ir a produccion.

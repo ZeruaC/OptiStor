@@ -113,10 +113,17 @@ Spain formula" to "multi-jurisdiction tariff framework"; framework done, formula
 - [x] FIN-05: Pluggable `TariffModel` framework in `engine/` with Spain/El Salvador as explicit
   `TariffPending` stubs, verified end-to-end against the live engine (2026-07-28)
 
-**Phase 6 — Deployment & Go-Live**
-- [ ] DEPLOY-01: Hosting/deployment target decided
-- [ ] DEPLOY-02: Full stack deployed and reachable at a real URL
-- [ ] DEPLOY-03: Full Configurar→Simular→Dashboard flow verified end-to-end in production
+**Phase 6 — Deployment & Go-Live** (in progress — worked in parallel with Phase 5's tariff
+research at Benja's request; artifacts built, none verified — no Docker in this environment)
+- [x] DEPLOY-01: Hosting/deployment target decided — Fly.io (2026-07-28)
+- [ ] DEPLOY-02: Full stack deployed and reachable at a real URL — **blocked**: Dockerfiles/
+  fly.toml/docker-compose written and hand-reviewed but never built or run (no `docker`, no WSL
+  distro available). Real bug found and fixed by inspection: `server/` was bound to `127.0.0.1`
+  (unreachable from outside a container), now `0.0.0.0` via `OPTISTOR_BIND_ADDR`. Biggest
+  unverified risk: whether GEKKO's bundled Fortran solver binary runs correctly in the slim
+  Python container (added `libgfortran5` proactively, untested)
+- [ ] DEPLOY-03: Full Configurar→Simular→Dashboard flow verified end-to-end in production —
+  blocked on DEPLOY-02
 
 ### Out of Scope
 
@@ -199,9 +206,11 @@ Spain formula" to "multi-jurisdiction tariff framework"; framework done, formula
 | Charting library: Apache ECharts | Explicitly chosen for visual polish (gradient fills, smooth animated curves) over Plotly's more utilitarian defaults, to get closer to PVSyst-caliber report aesthetics the client asked for; free/open-source, no licensing cost | ✓ Good (resolved 2026-07-28, Phase 4) |
 | Multi-jurisdiction tariff architecture: shared `Market` entity + pluggable `TariffModel` registry in `engine/` | Projects are international; a project's location determines applicable regulation/prices, and clients/projects in the same country shouldn't duplicate that setup. Confirmed via research that El Salvador and Nicaragua don't share a unified regional price despite both trading on the MER, so each country is its own `Market` | ✓ Good (resolved 2026-07-28, Phase 5) |
 | Tariff formula validity — Spain and El Salvador (scope grew from just `get_index_tariff`) | Needs domain/finance expert review or fresh design; Benja opted to design fresh per-country formulas rather than resolve the old Spain bracket ambiguity directly, but hasn't provided either yet | — **Pending** (Phase 5, blocks FIN-01..03) |
-| Deployment/hosting target (cloud VM, PaaS, self-hosted) | Not yet chosen | — Pending (Phase 6) |
+| Deployment/hosting target: Fly.io | Persistent volumes for SQLite, private inter-app networking keeps `engine/` off the public internet, built-in TLS, low ops overhead for a small team; see `DEPLOYMENT.md` | ✓ Good (resolved 2026-07-28, Phase 6) — artifacts unverified, no Docker available |
 
 ---
-*Last updated: 2026-07-28 — Phase 5 (Tariff Formula Validation & Port) in progress: multi-
-jurisdiction framework (FIN-04/05) built and verified; FIN-01..03 (an actual validated formula)
-still blocked on domain/finance input*
+*Last updated: 2026-07-28 — Phase 6 deployment artifacts built in parallel with Phase 5 tariff
+research (both in progress, neither complete): Fly.io decided (DEPLOY-01), Dockerfiles/fly.toml
+written but unverified — no Docker in this environment (DEPLOY-02/03 pending). Phase 5's
+multi-jurisdiction framework (FIN-04/05) built and verified; FIN-01..03 (an actual validated
+formula) still blocked on domain/finance input*
