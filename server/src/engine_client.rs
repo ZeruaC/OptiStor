@@ -67,6 +67,19 @@ impl EngineClient {
         Ok(body)
     }
 
+    /// Attempts the real per-jurisdiction tariff via the engine's stateless
+    /// `/tariffs/{key}/compute`. Returns `None` on *any* failure — unknown
+    /// market key, the model still being `TariffPending` (Phase 5, FIN-01),
+    /// or a network error — so the caller can fall back to the provisional
+    /// flat tariff without the whole solve failing over a pricing detail.
+    async fn try_compute_tariff(&self, key: &str, spot_price: &[f64]) -> Option<(Vec<f64>, Vec<f64>)> {
+        let body = json!({ "spot_price": spot_price, "params": {} });
+        let value = self.post(&format!("/tariffs/{key}/compute"), body).await.ok()?;
+        let export_cost = serde_json::from_value(value.get("export_cost")?.clone()).ok()?;
+        let import_cost = serde_json::from_value(value.get("import_cost")?.clone()).ok()?;
+        Some((export_cost, import_cost))
+    }
+
     async fn delete_session(&self, session_id: &str) {
         // Best-effort cleanup: a failed delete just leaks one in-memory
         // engine session until that process restarts, not worth failing
@@ -81,7 +94,15 @@ impl EngineClient {
     /// Runs one full Configurar -> Simular cycle: builds a fresh engine
     /// session from `data`, solves it, and returns the result. Caller is
     /// expected to have already checked `data.missing().is_empty()`.
-    pub async fn run_solve(&self, data: &ProjectData) -> Result<SolveResultData, EngineError> {
+    ///
+    /// `tariff_model_key` is the project's assigned market's tariff model
+    /// (see `db::Market`), if any — `None` when no market is assigned, in
+    /// which case the provisional flat tariff is used directly.
+    pub async fn run_solve(
+        &self,
+        data: &ProjectData,
+        tariff_model_key: Option<&str>,
+    ) -> Result<SolveResultData, EngineError> {
         let topology = json!({
             "objective": data.objective.clone().unwrap_or_else(|| "cost".to_string()),
             "consumption": data.consumption_enabled,
@@ -106,7 +127,7 @@ impl EngineClient {
             })?
             .to_string();
 
-        let result = self.configure_and_solve(&session_id, data).await;
+        let result = self.configure_and_solve(&session_id, data, tariff_model_key).await;
         self.delete_session(&session_id).await;
         result
     }
@@ -115,6 +136,7 @@ impl EngineClient {
         &self,
         session_id: &str,
         data: &ProjectData,
+        tariff_model_key: Option<&str>,
     ) -> Result<SolveResultData, EngineError> {
         let period = data.time_period.unwrap_or(2);
         let step = data.time_step.unwrap_or(1.0);
@@ -164,9 +186,6 @@ impl EngineClient {
             .await?;
         }
 
-        // Provisional flat tariff so the "cost" objective has something to
-        // optimize against before Phase 5 validates the real tariff
-        // formulas — see FIN-01..03. Not used at all for "energy" objective.
         let mut grid_body = json!({
             "power_cap": [
                 data.grid.export_max.unwrap_or(0.0),
@@ -175,7 +194,23 @@ impl EngineClient {
         });
         if data.objective.as_deref() == Some("cost") {
             let n = period.max(0) as usize;
-            grid_body["energy_cost"] = json!([vec![-0.05_f64; n], vec![0.20_f64; n]]);
+
+            // Try the project's assigned market's real tariff model first.
+            // Its input shape is still a placeholder (no market-price
+            // collection UI exists yet — the Configurar form doesn't ask
+            // for one, since we don't know what each formula needs until
+            // Phase 5 confirms it) — every registered model currently
+            // raises TariffPending regardless, so this always falls
+            // through to the provisional flat tariff today. The plumbing
+            // is real; only the formulas and their real inputs are pending.
+            let real_tariff = match tariff_model_key {
+                Some(key) => self.try_compute_tariff(key, &vec![0.0_f64; n]).await,
+                None => None,
+            };
+
+            let (export_cost, import_cost) =
+                real_tariff.unwrap_or_else(|| (vec![-0.05_f64; n], vec![0.20_f64; n]));
+            grid_body["energy_cost"] = json!([export_cost, import_cost]);
         }
         self.post(&format!("/sessions/{session_id}/grid"), grid_body).await?;
 

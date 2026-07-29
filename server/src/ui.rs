@@ -64,6 +64,7 @@ async fn login_page() -> impl IntoResponse {
 #[template(path = "projects_list.html")]
 struct ProjectsListTemplate {
     projects: Vec<db::Project>,
+    markets: Vec<db::Market>,
     is_internal: bool,
 }
 
@@ -72,7 +73,12 @@ async fn projects_list(
     user: AuthUser,
 ) -> Result<impl IntoResponse, ApiError> {
     let projects = db::list_projects(&state.db, scope_for(&user)).await?;
-    Ok(HtmlTemplate(ProjectsListTemplate { projects, is_internal: user.role == Role::Internal }))
+    let markets = db::list_markets(&state.db).await?;
+    Ok(HtmlTemplate(ProjectsListTemplate {
+        projects,
+        markets,
+        is_internal: user.role == Role::Internal,
+    }))
 }
 
 #[derive(Deserialize)]
@@ -80,6 +86,8 @@ struct CreateProjectForm {
     name: String,
     #[serde(default)]
     org_id: Option<String>,
+    #[serde(default)]
+    market_id: Option<String>,
 }
 
 async fn create_project_form(
@@ -102,9 +110,22 @@ async fn create_project_form(
         return Err(ApiError::BadRequest("organizacion desconocida".into()));
     }
 
+    let market_id = match form.market_id.filter(|s| !s.trim().is_empty()) {
+        Some(raw) => {
+            let id = Uuid::parse_str(raw.trim())
+                .map_err(|_| ApiError::BadRequest("market_id invalido".into()))?;
+            if !db::market_exists(&state.db, id).await? {
+                return Err(ApiError::BadRequest("mercado desconocido".into()));
+            }
+            Some(id)
+        }
+        None => None,
+    };
+
     let default_data = serde_json::to_value(ProjectRecord::default())
         .expect("ProjectRecord always serializes");
-    let project = db::create_project(&state.db, org_id, &form.name, &default_data).await?;
+    let project =
+        db::create_project(&state.db, org_id, market_id, &form.name, &default_data).await?;
     Ok(Redirect::to(&format!("/app/projects/{}", project.id)))
 }
 
@@ -454,7 +475,14 @@ async fn solve_project(
         ))));
     }
 
-    let dashboard = match state.engine.run_solve(&record.config).await {
+    let mut tariff_model_key = None;
+    if let Some(market_id) = project.market_id {
+        if let Some(market) = db::get_market(&state.db, market_id).await? {
+            tariff_model_key = Some(market.tariff_model_key);
+        }
+    }
+
+    let dashboard = match state.engine.run_solve(&record.config, tariff_model_key.as_deref()).await {
         Ok(result) => {
             record.last_solve = Some(result.clone());
             let json = serde_json::to_value(&record).expect("ProjectRecord always serializes");

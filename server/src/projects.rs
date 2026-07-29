@@ -14,6 +14,7 @@ use crate::{db, AppState};
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/organizations", post(create_organization))
+        .route("/markets", post(create_market).get(list_markets))
         .route("/projects", post(create_project).get(list_projects))
         .route("/projects/{id}", get(get_project))
 }
@@ -36,9 +37,39 @@ async fn create_organization(
 }
 
 #[derive(Deserialize)]
+struct CreateMarketIn {
+    name: String,
+    country_code: String,
+    tariff_model_key: String,
+}
+
+/// Markets are shared platform reference data (which jurisdictions/tariff
+/// structures exist at all), not client-specific — internal-only, same as
+/// organizations.
+async fn create_market(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(body): Json<CreateMarketIn>,
+) -> Result<Json<db::Market>, ApiError> {
+    if user.role != Role::Internal {
+        return Err(ApiError::Forbidden);
+    }
+    let market =
+        db::create_market(&state.db, &body.name, &body.country_code, &body.tariff_model_key)
+            .await?;
+    Ok(Json(market))
+}
+
+async fn list_markets(State(state): State<AppState>, _user: AuthUser) -> Result<Json<Vec<db::Market>>, ApiError> {
+    Ok(Json(db::list_markets(&state.db).await?))
+}
+
+#[derive(Deserialize)]
 struct CreateProjectIn {
     #[serde(default)]
     org_id: Option<Uuid>,
+    #[serde(default)]
+    market_id: Option<Uuid>,
     name: String,
     #[serde(default = "default_project_data")]
     data: Value,
@@ -67,7 +98,14 @@ async fn create_project(
         return Err(ApiError::BadRequest("unknown org_id".into()));
     }
 
-    let project = db::create_project(&state.db, org_id, &body.name, &body.data).await?;
+    if let Some(market_id) = body.market_id {
+        if !db::market_exists(&state.db, market_id).await? {
+            return Err(ApiError::BadRequest("unknown market_id".into()));
+        }
+    }
+
+    let project =
+        db::create_project(&state.db, org_id, body.market_id, &body.name, &body.data).await?;
     Ok(Json(project))
 }
 

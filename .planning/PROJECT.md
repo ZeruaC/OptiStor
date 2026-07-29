@@ -99,10 +99,19 @@ Full detail with IDs lives in `.planning/REQUIREMENTS.md`. Summary below.
 
 <!-- Current v1 scope. Full descriptions and acceptance detail in REQUIREMENTS.md. -->
 
-**Phase 5 — Tariff Formula Validation & Port**
-- [ ] FIN-01: Tariff formulas reviewed and validated by a domain/finance expert
-- [ ] FIN-02: Validated tariff calculation ported into engine/ with a test
-- [ ] FIN-03: Dashboard KPIs switched from provisional to validated tariff logic
+**Phase 5 — Tariff Formula Validation & Port** (in progress — scope grew 2026-07-28 from "port one
+Spain formula" to "multi-jurisdiction tariff framework"; framework done, formulas still pending)
+- [ ] FIN-01: Tariff formula reviewed/designed for at least Spain and El Salvador by domain/finance
+  expertise — **blocked**: Benja chose to design fresh per-country formulas rather than resolve the
+  old Spain bracket ambiguity, but hasn't provided either country's formula yet
+- [ ] FIN-02: Validated tariff calculation ported into `engine/tariffs/` with a test — blocked on
+  FIN-01
+- [ ] FIN-03: Dashboard KPIs switched from provisional to validated tariff logic — blocked on
+  FIN-01/02
+- [x] FIN-04: Shared `Market` entity (country + tariff model key), reusable across
+  organizations/projects (2026-07-28)
+- [x] FIN-05: Pluggable `TariffModel` framework in `engine/` with Spain/El Salvador as explicit
+  `TariffPending` stubs, verified end-to-end against the live engine (2026-07-28)
 
 **Phase 6 — Deployment & Go-Live**
 - [ ] DEPLOY-01: Hosting/deployment target decided
@@ -188,8 +197,11 @@ Full detail with IDs lives in `.planning/REQUIREMENTS.md`. Summary below.
 | Multi-tenancy / partner permission model: `role`/`org_id` as Supabase `app_metadata` claims, enforced by `server/` | Standard org-scoping pattern; verified with real internal- and partner-role JWTs, including that cross-org access by id 404s rather than 403s (no existence leak) | ✓ Good (resolved 2026-07-28, Phase 2) |
 | Frontend framework: HTMX + server-rendered Askama templates | Phase 3 is forms + validation feedback, not rich client interactivity; avoids a second (WASM) build toolchain alongside the existing Rust one | ✓ Good (resolved 2026-07-28, Phase 3) |
 | Charting library: Apache ECharts | Explicitly chosen for visual polish (gradient fills, smooth animated curves) over Plotly's more utilitarian defaults, to get closer to PVSyst-caliber report aesthetics the client asked for; free/open-source, no licensing cost | ✓ Good (resolved 2026-07-28, Phase 4) |
-| Tariff formula validity (`get_index_tariff` family) | Needs domain/finance expert review before porting; original code's own comments flag it as unvalidated | — Pending (Phase 5) |
+| Multi-jurisdiction tariff architecture: shared `Market` entity + pluggable `TariffModel` registry in `engine/` | Projects are international; a project's location determines applicable regulation/prices, and clients/projects in the same country shouldn't duplicate that setup. Confirmed via research that El Salvador and Nicaragua don't share a unified regional price despite both trading on the MER, so each country is its own `Market` | ✓ Good (resolved 2026-07-28, Phase 5) |
+| Tariff formula validity — Spain and El Salvador (scope grew from just `get_index_tariff`) | Needs domain/finance expert review or fresh design; Benja opted to design fresh per-country formulas rather than resolve the old Spain bracket ambiguity directly, but hasn't provided either yet | — **Pending** (Phase 5, blocks FIN-01..03) |
 | Deployment/hosting target (cloud VM, PaaS, self-hosted) | Not yet chosen | — Pending (Phase 6) |
 
 ---
-*Last updated: 2026-07-28 after Phase 4 (Simular & Dashboard — Solve & Results UI) completed*
+*Last updated: 2026-07-28 — Phase 5 (Tariff Formula Validation & Port) in progress: multi-
+jurisdiction framework (FIN-04/05) built and verified; FIN-01..03 (an actual validated formula)
+still blocked on domain/finance input*

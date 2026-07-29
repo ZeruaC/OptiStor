@@ -31,7 +31,7 @@ without addressing its row, that's a gap, not a resolution.
 | 4 | Multi-tenancy / partner permission model | Phase 2 | **Resolved** — `role`/`org_id` as Supabase `app_metadata` claims, enforced server-side; verified with real internal and partner JWTs |
 | 5 | Frontend framework (Leptos/WASM vs. server-rendered HTMX + Askama) | Phase 3 | **Resolved** — HTMX + Askama; this phase is forms-and-validation-heavy, not worth a second (WASM) build toolchain |
 | 6 | Charting library (Plotly.js vs. ECharts) | Phase 4 | **Resolved** — Apache ECharts, chosen for visual polish over Plotly's more utilitarian defaults, to get closer to PVSyst-caliber report aesthetics |
-| 7 | Tariff formula validity — domain/finance expert review of `get_index_tariff` family | Phase 5 | Pending |
+| 7 | Tariff formula validity — domain/finance expert review, now for a fresh per-country formula (Spain, El Salvador) rather than just validating `get_index_tariff` | Phase 5 | **Pending** — framework to receive the answer is built; the formulas themselves are not provided yet |
 | 8 | Deployment/hosting target (cloud VM, PaaS, self-hosted) | Phase 6 | Pending |
 
 Two additional known items from the brief are deliberately *not* decision points needing resolution
@@ -286,27 +286,71 @@ Tracker #6).
 **UI hint**: yes
 
 ### Phase 5: Tariff Formula Validation & Port
+**Status: IN PROGRESS, not done.** The framework is built and verified; the actual validated
+formulas (the thing this phase exists for) are still blocked on domain/finance input.
+
 **Goal**: Tariff-calculation logic is validated by a domain/finance expert and ported into the
-engine as trustworthy, replacing the provisional placeholder wired up in Phase 4. This is
-deliberately its own phase — not silently bundled into "porting the engine" — because the original
-formulas carry the old code's own unresolved comments ("check bracket", "ask for the shift")
-questioning their correctness, and the numbers they produce feed client-facing commercial
-proposals.
+engine as trustworthy, replacing the provisional placeholder wired up in Phase 4.
+
+**Scope grew 2026-07-28**: this was originally framed as "validate and port one Spain formula."
+When asked to review the old prototype's two mutually-exclusive bracket versions of
+`get_index_tariff`, Benja redirected: projects are international, so tariff rules/prices must be
+loaded per project *location*, and multiple projects/clients in the same country should share that
+setup rather than duplicate it. That's a materially bigger scope than "fix one formula" — it's
+"build a multi-jurisdiction tariff framework, of which Spain's formula is one instance." FIN-04
+and FIN-05 (the framework) were added to REQUIREMENTS.md to track this without losing FIN-01..03
+(an actual validated formula), which remain the phase's real completion criteria.
+
 **Depends on**: Phase 4 (replaces the provisional tariff logic wired into the dashboard's
 cost/LCOS KPIs)
-**Requirements**: FIN-01, FIN-02, FIN-03
+**Requirements**: FIN-01, FIN-02, FIN-03 (open), FIN-04, FIN-05 (done)
 **Decision point**: Not a technical choice — gated on a domain/finance expert review (Open
-Decisions Tracker #7). That review can be scheduled and run any time from Phase 2 onward; it's
-sequenced last here only because that's when its output gets wired into the dashboard, not because
-the review itself must wait.
+Decisions Tracker #7), now for *at least two* jurisdictions (Spain, El Salvador) rather than one.
+Confirmed via web research (2026-07-28) that El Salvador and Nicaragua, despite both trading on
+the Central American regional market (MER, coordinated by EOR/CRIE), do **not** share a unified
+price — April 2026 data showed El Salvador at 75-146 USD/MWh vs. Nicaragua at 156-178 USD/MWh in
+the same month — confirming each country needs its own `Market` entity, not a shared regional one.
 **Success Criteria** (what must be TRUE):
-  1. A domain/finance expert has reviewed and confirmed (or corrected) the `get_index_tariff` /
-     `get_index_tariff_simp` / `adjust_index_tariff` formulas from the old prototype
-  2. The validated tariff calculation is ported into `engine/` with a test against a
-     known-correct worked example
-  3. Dashboard cost/LCOS KPIs use the validated tariff logic and the "provisional" flag
-     introduced in Phase 4 is removed
-**Plans**: TBD
+  1. ⬜ A domain/finance expert has reviewed and confirmed (or designed fresh) the tariff formula
+     for at least Spain and El Salvador — **not yet done**; Benja chose to design fresh per-country
+     formulas rather than resolve the old Spain-specific bracket ambiguity directly, but hasn't
+     provided either country's formula yet
+  2. ⬜ The validated tariff calculation is ported into `engine/tariffs/` with a test against a
+     known-correct worked example, for at least one country — **not yet done**, blocked on #1
+  3. ⬜ Dashboard cost/LCOS KPIs use the validated tariff logic and the "provisional" flag
+     introduced in Phase 4 is removed — **not yet done**, blocked on #1/#2
+  4. ✅ A shared `Market` entity exists (country + tariff model key), reusable across
+     organizations/projects, with a JSON API and a project-creation UI dropdown
+  5. ✅ A pluggable per-jurisdiction `TariffModel` framework exists in `engine/`, with explicit
+     `TariffPending` stubs for Spain and El Salvador (never silently wrong numbers), and
+     `engine_client.rs` attempts the real model when a project has a market assigned, falling back
+     to the provisional flat tariff on any failure — verified end-to-end against the live engine
+**Plans**: Implemented directly (no separate PLAN.md — same rationale as Phases 1-4), for the
+framework portion (FIN-04/05) only.
+**What shipped 2026-07-28 (framework only):**
+  - **Server**: `migrations/0002_markets.sql` — `markets` table (name, country_code,
+    tariff_model_key) + nullable `market_id` on `projects`. `db.rs` gained `Market` CRUD +
+    `market_exists`; `Project`/`ProjectRow` extended. `projects.rs` gained internal-only
+    `POST`/`GET /markets`. `ui.rs`'s project-creation form gained a market dropdown ("sin asignar"
+    is a valid choice, defaulting to the provisional tariff).
+  - **Engine**: new `tariffs/` package (`base.py`'s `TariffModel` ABC + `TariffPending` exception,
+    `registry.py`, `spain.py` and `el_salvador.py` as explicit pending stubs) and a stateless
+    `POST /tariffs/{key}/compute` endpoint (404 unknown market, 501 pending model). 5 new tests.
+  - **`engine_client.rs`**: `run_solve` now takes the project's `tariff_model_key` (looked up from
+    its `market_id`, if any) and attempts `/tariffs/{key}/compute` before falling back to the
+    existing provisional flat tariff on *any* failure (no market, unknown key, pending model,
+    network error) — a pricing detail should never fail the whole solve.
+  - **Verified against the live engine**: created a real "Espana (OMIE)" market via the JSON API,
+    assigned it to a fully-configured test project, solved it, and confirmed in the engine's own
+    logs the exact intended sequence — `POST /tariffs/spain/compute` → `501` → solve proceeds
+    anyway with the provisional tariff → `200` — proving the fallback is real, not just designed.
+**Known limitation, explicitly not solved here:** none of the registered tariff models have real
+inputs yet — there's no market-price (spot price) collection UI, since nobody yet knows what shape
+each country's formula will actually need. `engine_client.rs` currently sends a placeholder
+all-zero array to `/tariffs/{key}/compute`; this is harmless *only* because every model
+unconditionally raises `TariffPending` regardless of input. The moment a real formula is
+implemented, its actual input requirements (and the UI to collect them) become real, unbuilt work —
+don't assume the plumbing here is "input-complete."
 
 ### Phase 6: Deployment & Go-Live
 **Goal**: The full stack runs as a real, always-on hosted service partners can reach and log into
@@ -335,5 +379,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Server Foundations — Auth & Project Persistence | 1/1 | Done | 2026-07-28 |
 | 3. Configurar — Topology & Data Input UI | 1/1 | Done | 2026-07-28 |
 | 4. Simular & Dashboard — Solve & Results UI | 1/1 | Done | 2026-07-28 |
-| 5. Tariff Formula Validation & Port | 0/TBD | Not started | - |
+| 5. Tariff Formula Validation & Port | 1/2 | In progress (framework done, formulas pending) | - |
 | 6. Deployment & Go-Live | 0/TBD | Not started | - |

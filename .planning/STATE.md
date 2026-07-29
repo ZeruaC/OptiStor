@@ -22,18 +22,21 @@ local Python environment.
 
 ## Current Position
 
-Phase: 5 of 6 (Tariff Formula Validation & Port)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-07-28 — Phase 4 (Simular & Dashboard) implemented directly and verified in a
-real browser session against the live Supabase project and the live engine: charting library
-decided (Apache ECharts, chosen for visual polish over Plotly), engine extended with battery
-SoH/SoC outputs, a new server-side engine_client.rs drives the full solve lifecycle from a saved
-project config, dashboard fragment renders KPI cards (clearly marked provisional) and two ECharts
-charts (energy flows, battery SoC), confirmed real solve numbers, real chart instances, and
-persistence across a hard reload. PROJECT.md, REQUIREMENTS.md, ROADMAP.md updated.
+Phase: 5 of 6 (Tariff Formula Validation & Port) — IN PROGRESS, not complete
+Plan: 1 of ~2 in current phase (framework plan done; the "port validated formula" plan is blocked)
+Status: Blocked on external input (domain/finance tariff formula), not on Claude
+Last activity: 2026-07-28 — Phase 5's scope grew from "port one Spain formula" to "build a
+multi-jurisdiction tariff framework" (projects are international; location determines
+regulation/prices; clients/projects in the same country share setup). Built and verified against
+the live engine: a shared `Market` entity (server), a pluggable `TariffModel` framework in
+`engine/tariffs/` with Spain/El Salvador as explicit `TariffPending` stubs, a stateless
+`/tariffs/{key}/compute` endpoint, and `engine_client.rs` wired to attempt the real model and fall
+back to the provisional flat tariff on any failure — confirmed the exact fallback sequence in
+engine logs (501 pending -> solve proceeds anyway -> 200). FIN-04/05 done; FIN-01/02/03 (an actual
+validated formula) remain open, blocked on Benja/domain-finance input, not a technical gap.
+PROJECT.md, REQUIREMENTS.md, ROADMAP.md updated to reflect partial completion honestly.
 
-Progress: [██████░░░░] 67%
+Progress: [██████░░░░] 67% (4 of 6 phases fully done; Phase 5 partially done)
 
 ## Performance Metrics
 
@@ -78,8 +81,12 @@ Recent decisions affecting current work:
 - Phase 4 (2026-07-28): charting library resolved — Apache ECharts over Plotly.js, chosen
   explicitly for visual polish to get closer to PVSyst-caliber report aesthetics (see PROJECT.md
   Key Decisions and ROADMAP.md Phase 4 detail)
-- 2 decisions remain open (tariff formula review, deployment target) — tracked in ROADMAP.md
-  "Open Decisions Tracker" and PROJECT.md Key Decisions
+- Phase 5 (2026-07-28, partial): multi-jurisdiction tariff architecture resolved — shared `Market`
+  entity + pluggable `TariffModel` registry, confirmed via research that El Salvador and Nicaragua
+  don't share a unified MER price so each is its own `Market`. The tariff formula itself (which
+  this decision framework exists to receive) is still open — see Blockers/Concerns.
+- 2 decisions remain open (tariff formula for Spain/El Salvador, deployment target) — tracked in
+  ROADMAP.md "Open Decisions Tracker" and PROJECT.md Key Decisions
 
 ### Pending Todos
 
@@ -104,6 +111,17 @@ None yet.
   (capex, opex, discount rate) not yet collected, plus Phase 5's validated tariff/finance model.
   Not a regression, just unbuilt; scope it into Phase 5 or flag as its own follow-up if it turns
   out to need more than Phase 5's stated scope.
+- **Phase 5 is genuinely blocked, not stalled by inaction**: `engine/tariffs/spain.py` and
+  `el_salvador.py` both unconditionally raise `TariffPending` — Benja was asked directly whether
+  the old prototype's active or commented-out bracket formula was correct and chose neither,
+  saying Balore will design fresh formulas and that the framework needed to support multiple
+  countries first. That framework now exists; the next concrete thing this phase needs is Benja
+  (or whoever he delegates to) supplying an actual formula for at least one country.
+- No market-price (spot price) input UI exists — nobody knows what shape each country's formula
+  will need until it's provided. `engine_client.rs` sends an all-zero placeholder to
+  `/tariffs/{key}/compute` today; harmless only because every model currently ignores its input
+  and raises `TariffPending` unconditionally. Don't mistake this plumbing for "input-complete" —
+  real formulas will need real input collection built alongside them.
 
 ## Deferred Items
 
@@ -117,10 +135,13 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-07-28
-Stopped at: Phase 4 complete, verified in a real browser session against live Supabase and the
-live engine, and about to be committed. Next up is Phase 5 (Tariff Formula Validation & Port) —
-gated on a domain/finance expert reviewing the old prototype's `get_index_tariff` family (Open
-Decisions Tracker #7), not a technical choice Claude can make alone. Once reviewed, port the
-validated formula into `engine/` with a test, then replace `engine_client.rs`'s provisional flat
-tariff and remove the "provisional" flag from the dashboard's cost KPI.
+Stopped at: Phase 5's framework (FIN-04/05) built and verified against the live engine, about to be
+committed. **Phase 5 is not complete** — FIN-01/02/03 need an actual validated tariff formula for
+at least Spain or El Salvador, which is a domain/finance decision, not a technical one Claude can
+make. Next concrete step: get that formula from Benja (or whoever he delegates to), including
+clarifying what raw inputs it needs (e.g. does it need a spot-price series? if so from where?),
+then implement it in `engine/tariffs/{spain,el_salvador}.py` replacing the `TariffPending` stub,
+add a worked-example test, and only then remove the dashboard's "provisional" flag. Until that
+lands, Phase 6 (deployment) could reasonably be worked in parallel if Benja prefers, since it
+doesn't depend on Phase 5 being finished, only on Phases 1-4's flow being solid (which it is).
 Resume file: None

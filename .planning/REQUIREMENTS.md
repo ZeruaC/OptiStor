@@ -109,13 +109,35 @@ Requirements for the initial release. Each maps to exactly one roadmap phase (se
 
 ### Tariff Formula Validation & Port (FIN)
 
-- [ ] **FIN-01**: The old prototype's tariff-calculation formulas (`get_index_tariff`,
-  `get_index_tariff_simp`, `adjust_index_tariff`) have been reviewed and validated (or corrected)
-  by a domain/finance expert
-- [ ] **FIN-02**: The validated tariff calculation is ported into `engine/` with a test against a
-  known-correct worked example
+**Scope note (2026-07-28):** this grew from "port one formula" into "build a multi-jurisdiction
+tariff framework" — projects are international, so a project's *location* determines which
+regulations/prices apply, and multiple projects/clients in the same country share that setup
+rather than duplicating it. FIN-04/05 (the framework) are done; FIN-01/02/03 (an actual validated
+formula for any specific country) are still blocked on domain/finance input and remain open.
+
+- [ ] **FIN-01**: The old prototype's Spain/OMIE tariff-calculation formulas (`get_index_tariff`,
+  `get_index_tariff_simp`, `adjust_index_tariff`) — or a fresh formula for any target country —
+  have been reviewed and validated by a domain/finance expert. Still open: the old formula had two
+  mutually exclusive versions in the same file (differing by a `+ municipality` term) and the
+  temporal shift in `adjust_index_tariff` was flagged as unresolved; Benja opted to design fresh
+  per-country formulas rather than resolve the old Spain-specific one directly, starting with
+  Spain and El Salvador, but hasn't provided either yet
+- [ ] **FIN-02**: The validated tariff calculation is ported into `engine/tariffs/` (replacing the
+  `TariffPending` stub) with a test against a known-correct worked example, for at least one
+  country
 - [ ] **FIN-03**: Dashboard cost/LCOS KPIs use the validated tariff logic and the "provisional"
   flag from DASH-02 is removed
+- [x] **FIN-04**: A shared `Market` entity (jurisdiction + its tariff model key) exists, reusable
+  across organizations and projects, so multiple clients/projects in the same country don't
+  duplicate regulatory/pricing setup — `server/` `markets` table + JSON API
+  (`POST`/`GET /markets`, internal-only) + project-creation dropdown (2026-07-28)
+- [x] **FIN-05**: A pluggable per-jurisdiction tariff model framework exists in `engine/`, with
+  Spain and El Salvador registered as explicit `TariffPending` stubs (not silently wrong numbers),
+  a stateless `POST /tariffs/{key}/compute` endpoint, and `engine_client.rs` wired to attempt the
+  real model when a project has a market assigned, falling back to the existing provisional flat
+  tariff on any failure (unknown market, pending model, network error) — verified end-to-end
+  against the live engine, including confirming the graceful 501-to-fallback path in server logs
+  (2026-07-28)
 
 ### Deployment & Go-Live (DEPLOY)
 
@@ -184,18 +206,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DASH-01 | Phase 4 | Done |
 | DASH-02 | Phase 4 | Done |
 | DASH-03 | Phase 4 | Done (SoC trajectory; full SoH decline needs v2 rolling-horizon) |
-| FIN-01 | Phase 5 | Pending |
+| FIN-01 | Phase 5 | Pending (blocked on domain/finance formula input) |
 | FIN-02 | Phase 5 | Pending |
 | FIN-03 | Phase 5 | Pending |
+| FIN-04 | Phase 5 | Done |
+| FIN-05 | Phase 5 | Done |
 | DEPLOY-01 | Phase 6 | Pending |
 | DEPLOY-02 | Phase 6 | Pending |
 | DEPLOY-03 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 27 total
-- Mapped to phases: 27
+- v1 requirements: 29 total (FIN-04, FIN-05 added 2026-07-28 when Phase 5's scope grew from "port
+  one formula" to "multi-jurisdiction tariff framework")
+- Mapped to phases: 29
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-28*
-*Last updated: 2026-07-28 after Phase 4 (Simular & Dashboard — Solve & Results UI) completed*
+*Last updated: 2026-07-28 — Phase 5 framework (FIN-04, FIN-05) built; FIN-01..03 still open,
+blocked on domain/finance tariff formula input, not a technical gap*
