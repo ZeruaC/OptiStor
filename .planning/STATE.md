@@ -94,13 +94,20 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- A background research agent's tariff-formula report is sitting unread at
-  `C:\Users\Ben\AppData\Local\Temp\claude\F--batopt\81866d14-1e1a-4828-a3bc-fcd78e380ef9\scratchpad\tariff_research.md`
-  (a session-scoped scratch path — move/copy anything worth keeping into the repo or a durable
-  note before that session's temp directory is gone). Needs to be read and relayed to Benja next
-  turn; findings are NOT yet reflected in `engine/tariffs/spain.py` or `el_salvador.py` and must
-  not be coded up without his sign-off (per the agent's own instructions and Phase 5's FIN-01
-  requirement — domain/finance expert confirmation, not an AI's best guess).
+- A background research agent's Spain/El Salvador tariff-formula report has been read and copied
+  into the repo at `.planning/research/tariff_spain_el_salvador.md` (durable — the original was a
+  session-scoped scratch path that would have been lost). Relayed to Benja 2026-07-28. Key
+  findings: Spain's bill *shape* is well-confirmed (OMIE spot -> peajes CNMC -> cargos MITECO ->
+  IEE 5.11% -> IVA 21%), but the old prototype's `losses*(1+municipality)` interaction and the
+  "municipality" surcharge itself could NOT be traced to any official CNMC/BOE source — likely an
+  error in the original prototype, not a real mechanism. El Salvador's 3-part distributor charge
+  (energia/distribucion/comercializacion) is confirmed via SIGET/UT/AES, but whether the standard
+  13% IVA even applies to a private distributor's bill is unresolved (Article 46's exemption is
+  worded for "public institutions"; AES distributors are private) — flagged as the single highest-
+  stakes open question. Findings are NOT yet reflected in `engine/tariffs/spain.py` or
+  `el_salvador.py` and must not be coded up without Benja's sign-off on the open-questions lists in
+  that report (per Phase 5's FIN-01 requirement — domain/finance expert confirmation, not an AI's
+  best guess).
 
 ### Blockers/Concerns
 
