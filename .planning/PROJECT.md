@@ -100,18 +100,24 @@ Full detail with IDs lives in `.planning/REQUIREMENTS.md`. Summary below.
 <!-- Current v1 scope. Full descriptions and acceptance detail in REQUIREMENTS.md. -->
 
 **Phase 5 — Tariff Formula Validation & Port** (in progress — scope grew 2026-07-28 from "port one
-Spain formula" to "multi-jurisdiction tariff framework"; framework done, formulas still pending)
-- [ ] FIN-01: Tariff formula reviewed/designed for at least Spain and El Salvador by domain/finance
-  expertise — **blocked**: Benja chose to design fresh per-country formulas rather than resolve the
-  old Spain bracket ambiguity, but hasn't provided either country's formula yet
-- [ ] FIN-02: Validated tariff calculation ported into `engine/tariffs/` with a test — blocked on
-  FIN-01
-- [ ] FIN-03: Dashboard KPIs switched from provisional to validated tariff logic — blocked on
-  FIN-01/02
+Spain formula" to "multi-jurisdiction tariff framework"; formulas now validated, FIN-03 UI work
+remains)
+- [x] FIN-01: Fresh formulas designed/validated for Spain and El Salvador — research pass +
+  Benja's corrections + Claude's independent web-search verification of the highest-stakes claims
+  (Spain's "tasa municipal" real at 1.5%, El Salvador's 13% IVA does apply to private AES
+  distributors, CUST/COSTAMM both real distinct charges); see
+  `.planning/research/tariff_spain_el_salvador.md` (2026-07-28)
+- [x] FIN-02: Validated formulas ported into `engine/tariffs/{spain,el_salvador}.py` (replacing
+  the `TariffPending` stubs), each with a hand-computable worked-example test — 13 engine tests
+  passing (2026-07-28)
+- [ ] FIN-03: Dashboard KPIs switched from provisional to validated tariff logic — **not done**:
+  no Configurar UI collects either country's regulated-rate parameters yet, so `engine_client.rs`
+  still falls back to the provisional tariff in practice (now a clean 400 missing-params, not the
+  old 501 pending-model)
 - [x] FIN-04: Shared `Market` entity (country + tariff model key), reusable across
   organizations/projects (2026-07-28)
-- [x] FIN-05: Pluggable `TariffModel` framework in `engine/` with Spain/El Salvador as explicit
-  `TariffPending` stubs, verified end-to-end against the live engine (2026-07-28)
+- [x] FIN-05: Pluggable `TariffModel` framework in `engine/`, now with Spain/El Salvador fully
+  validated (not stubs), verified end-to-end against the live engine (2026-07-28)
 
 **Phase 6 — Deployment & Go-Live** (in progress — worked in parallel with Phase 5's tariff
 research at Benja's request; artifacts built, none verified — no Docker in this environment)
@@ -205,12 +211,11 @@ research at Benja's request; artifacts built, none verified — no Docker in thi
 | Frontend framework: HTMX + server-rendered Askama templates | Phase 3 is forms + validation feedback, not rich client interactivity; avoids a second (WASM) build toolchain alongside the existing Rust one | ✓ Good (resolved 2026-07-28, Phase 3) |
 | Charting library: Apache ECharts | Explicitly chosen for visual polish (gradient fills, smooth animated curves) over Plotly's more utilitarian defaults, to get closer to PVSyst-caliber report aesthetics the client asked for; free/open-source, no licensing cost | ✓ Good (resolved 2026-07-28, Phase 4) |
 | Multi-jurisdiction tariff architecture: shared `Market` entity + pluggable `TariffModel` registry in `engine/` | Projects are international; a project's location determines applicable regulation/prices, and clients/projects in the same country shouldn't duplicate that setup. Confirmed via research that El Salvador and Nicaragua don't share a unified regional price despite both trading on the MER, so each country is its own `Market` | ✓ Good (resolved 2026-07-28, Phase 5) |
-| Tariff formula validity — Spain and El Salvador (scope grew from just `get_index_tariff`) | Needs domain/finance expert review or fresh design; Benja opted to design fresh per-country formulas rather than resolve the old Spain bracket ambiguity directly, but hasn't provided either yet | — **Pending** (Phase 5, blocks FIN-01..03) |
+| Tariff formulas — Spain and El Salvador (fresh designs, not the old `get_index_tariff`) | Research + Benja's corrections + Claude's independent web-search re-verification of the highest-stakes claims before accepting them (not a rubber stamp) — see `.planning/research/tariff_spain_el_salvador.md` | ✓ Good (resolved 2026-07-28, Phase 5) — FIN-03's UI work still remains |
 | Deployment/hosting target: Fly.io | Persistent volumes for SQLite, private inter-app networking keeps `engine/` off the public internet, built-in TLS, low ops overhead for a small team; see `DEPLOYMENT.md` | ✓ Good (resolved 2026-07-28, Phase 6) — artifacts unverified, no Docker available |
 
 ---
-*Last updated: 2026-07-28 — Phase 6 deployment artifacts built in parallel with Phase 5 tariff
-research (both in progress, neither complete): Fly.io decided (DEPLOY-01), Dockerfiles/fly.toml
-written but unverified — no Docker in this environment (DEPLOY-02/03 pending). Phase 5's
-multi-jurisdiction framework (FIN-04/05) built and verified; FIN-01..03 (an actual validated
-formula) still blocked on domain/finance input*
+*Last updated: 2026-07-28 — Spain and El Salvador tariff formulas validated and ported
+(FIN-01/02 done; FIN-03's Configurar UI work remains). Phase 6 deployment artifacts built in
+parallel: Fly.io decided (DEPLOY-01), Dockerfiles/fly.toml written, Docker being installed for
+verification (DEPLOY-02/03 pending)*

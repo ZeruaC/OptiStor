@@ -112,32 +112,42 @@ Requirements for the initial release. Each maps to exactly one roadmap phase (se
 **Scope note (2026-07-28):** this grew from "port one formula" into "build a multi-jurisdiction
 tariff framework" — projects are international, so a project's *location* determines which
 regulations/prices apply, and multiple projects/clients in the same country share that setup
-rather than duplicating it. FIN-04/05 (the framework) are done; FIN-01/02/03 (an actual validated
-formula for any specific country) are still blocked on domain/finance input and remain open.
+rather than duplicating it. All of FIN-01/02/04/05 are now done for Spain and El Salvador; FIN-03
+(actually removing the dashboard's "provisional" flag) remains open — it needs a Configurar UI
+extension to collect each market's regulated-rate parameters, which doesn't exist yet.
 
-- [ ] **FIN-01**: The old prototype's Spain/OMIE tariff-calculation formulas (`get_index_tariff`,
-  `get_index_tariff_simp`, `adjust_index_tariff`) — or a fresh formula for any target country —
-  have been reviewed and validated by a domain/finance expert. Still open: the old formula had two
-  mutually exclusive versions in the same file (differing by a `+ municipality` term) and the
-  temporal shift in `adjust_index_tariff` was flagged as unresolved; Benja opted to design fresh
-  per-country formulas rather than resolve the old Spain-specific one directly, starting with
-  Spain and El Salvador, but hasn't provided either yet
-- [ ] **FIN-02**: The validated tariff calculation is ported into `engine/tariffs/` (replacing the
-  `TariffPending` stub) with a test against a known-correct worked example, for at least one
-  country
+- [x] **FIN-01**: Fresh formulas designed (not the old prototype's unconfirmable one) and validated
+  for Spain and El Salvador, combining a first research pass with a second correction pass and
+  Claude's own independent web-search verification of the most checkable/highest-stakes claims
+  before accepting them — see `.planning/research/tariff_spain_el_salvador.md` for the full trail
+  and citations (CNMC/BOE/MITECO for Spain; SIGET/UT/AES for El Salvador). Resolved: Spain's
+  "recargo municipal" is real (TRLHL Art. 24.1.c, 1.5% of gross billing — the original research
+  pass missed it searching "recargo" instead of the legal term "tasa"); losses apply only to the
+  wholesale energy term, not peajes/cargos. El Salvador's IVA (13%) does apply to the privately-
+  owned AES-footprint distributors (the Art. 46(h) public-institution exemption doesn't extend to
+  them); CUST and COSTAMM independently confirmed as real, distinct SIGET-regulated transmission
+  charges (2026-07-28)
+- [x] **FIN-02**: Validated formulas ported into `engine/tariffs/{spain,el_salvador}.py` (replacing
+  the `TariffPending` stubs), each with a hand-computable worked-example test
+  (`engine/tests/test_tariffs.py`) proving the code matches the documented formula, not just that
+  it runs — 13 engine tests passing total. Both models require their jurisdiction's regulated-rate
+  parameters explicitly (e.g. Spain's `peaje_energia`/`cargo_energia`) rather than defaulting them,
+  since those vary by client/contract band and change annually (2026-07-28)
 - [ ] **FIN-03**: Dashboard cost/LCOS KPIs use the validated tariff logic and the "provisional"
-  flag from DASH-02 is removed
+  flag from DASH-02 is removed — **not done**: the Configurar UI doesn't collect a market's
+  regulated-rate parameters (peajes, cargos, distribucion, cust, costamm, etc.), so
+  `engine_client.rs` still can't supply what the now-real formulas require and continues falling
+  back to the provisional flat tariff in practice (400 missing-params, not the old 501-pending).
+  LCOS itself also still isn't computed (needs project economics not yet collected)
 - [x] **FIN-04**: A shared `Market` entity (jurisdiction + its tariff model key) exists, reusable
   across organizations and projects, so multiple clients/projects in the same country don't
   duplicate regulatory/pricing setup — `server/` `markets` table + JSON API
   (`POST`/`GET /markets`, internal-only) + project-creation dropdown (2026-07-28)
 - [x] **FIN-05**: A pluggable per-jurisdiction tariff model framework exists in `engine/`, with
-  Spain and El Salvador registered as explicit `TariffPending` stubs (not silently wrong numbers),
-  a stateless `POST /tariffs/{key}/compute` endpoint, and `engine_client.rs` wired to attempt the
-  real model when a project has a market assigned, falling back to the existing provisional flat
-  tariff on any failure (unknown market, pending model, network error) — verified end-to-end
-  against the live engine, including confirming the graceful 501-to-fallback path in server logs
-  (2026-07-28)
+  Spain and El Salvador now fully validated (not stubs — see FIN-01/02), a stateless
+  `POST /tariffs/{key}/compute` endpoint, and `engine_client.rs` wired to attempt the real model
+  when a project has a market assigned, falling back to the provisional flat tariff on any failure
+  — verified end-to-end against the live engine (2026-07-28)
 
 ### Deployment & Go-Live (DEPLOY)
 
@@ -213,9 +223,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DASH-01 | Phase 4 | Done |
 | DASH-02 | Phase 4 | Done |
 | DASH-03 | Phase 4 | Done (SoC trajectory; full SoH decline needs v2 rolling-horizon) |
-| FIN-01 | Phase 5 | Pending (blocked on domain/finance formula input) |
-| FIN-02 | Phase 5 | Pending |
-| FIN-03 | Phase 5 | Pending |
+| FIN-01 | Phase 5 | Done |
+| FIN-02 | Phase 5 | Done |
+| FIN-03 | Phase 5 | Pending (needs Configurar UI to collect regulated-rate params) |
 | FIN-04 | Phase 5 | Done |
 | FIN-05 | Phase 5 | Done |
 | DEPLOY-01 | Phase 6 | Done |
@@ -230,6 +240,6 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-07-28*
-*Last updated: 2026-07-28 — Phase 6 deployment artifacts built (DEPLOY-01 done, DEPLOY-02/03
-pending real verification — no Docker available in this environment). Phase 5 framework (FIN-04,
-FIN-05) built; FIN-01..03 still open, blocked on domain/finance tariff formula input*
+*Last updated: 2026-07-28 — Spain and El Salvador tariff formulas validated and ported (FIN-01/02
+done); FIN-03 still open pending a Configurar UI extension. Phase 6 deployment artifacts built
+(DEPLOY-01 done, DEPLOY-02/03 pending real verification — Docker being set up)*

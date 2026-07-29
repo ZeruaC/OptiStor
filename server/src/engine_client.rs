@@ -69,9 +69,10 @@ impl EngineClient {
 
     /// Attempts the real per-jurisdiction tariff via the engine's stateless
     /// `/tariffs/{key}/compute`. Returns `None` on *any* failure — unknown
-    /// market key, the model still being `TariffPending` (Phase 5, FIN-01),
-    /// or a network error — so the caller can fall back to the provisional
-    /// flat tariff without the whole solve failing over a pricing detail.
+    /// market key, missing required regulated-rate params, an unvalidated
+    /// model still raising `TariffPending`, or a network error — so the
+    /// caller can fall back to the provisional flat tariff without the
+    /// whole solve failing over a pricing detail.
     async fn try_compute_tariff(&self, key: &str, spot_price: &[f64]) -> Option<(Vec<f64>, Vec<f64>)> {
         let body = json!({ "spot_price": spot_price, "params": {} });
         let value = self.post(&format!("/tariffs/{key}/compute"), body).await.ok()?;
@@ -196,13 +197,16 @@ impl EngineClient {
             let n = period.max(0) as usize;
 
             // Try the project's assigned market's real tariff model first.
-            // Its input shape is still a placeholder (no market-price
-            // collection UI exists yet — the Configurar form doesn't ask
-            // for one, since we don't know what each formula needs until
-            // Phase 5 confirms it) — every registered model currently
-            // raises TariffPending regardless, so this always falls
-            // through to the provisional flat tariff today. The plumbing
-            // is real; only the formulas and their real inputs are pending.
+            // Spain and El Salvador's formulas are now validated (Phase 5,
+            // FIN-01/02 — see engine/tariffs/{spain,el_salvador}.py) and
+            // will compute a real result *if* given their required
+            // regulated-rate params (e.g. Spain needs peaje_energia/
+            // cargo_energia). The Configurar UI doesn't collect those yet
+            // (FIN-03, still open) and this placeholder all-zero spot price
+            // isn't a real market price either — so this call still fails
+            // today (400, missing params) and falls through to the
+            // provisional flat tariff. Once the UI collects real per-market
+            // parameters, wire them through here instead of the zero array.
             let real_tariff = match tariff_model_key {
                 Some(key) => self.try_compute_tariff(key, &vec![0.0_f64; n]).await,
                 None => None,

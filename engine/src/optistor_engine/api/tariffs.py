@@ -35,5 +35,9 @@ async def compute_tariff(key: str, body: ComputeTariffIn) -> ComputeTariffOut:
         export_cost, import_cost = model.compute(body.spot_price, **body.params)
     except TariffPending as exc:
         raise HTTPException(status_code=501, detail=str(exc))
+    except TypeError as exc:
+        # A validated model's required params (e.g. Spain's peaje_energia)
+        # weren't supplied — a client-side mistake, not a server error.
+        raise HTTPException(status_code=400, detail=f"Parametros invalidos para '{key}': {exc}")
 
     return ComputeTariffOut(export_cost=export_cost, import_cost=import_cost)
